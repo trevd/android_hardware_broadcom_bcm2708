@@ -676,20 +676,28 @@ void egl_surface_free(EGL_SURFACE_T *surface)
 
 EGLint egl_surface_get_render_buffer(EGL_SURFACE_T *surface)
 {
-   ALOGI("%s",__FUNCTION__);
+   ALOGI("%s surface=%p",__FUNCTION__,surface);
    switch (surface->type) {
-   case WINDOW:
+   case WINDOW:{
+	  ALOGI("%s surface->type=WINDOW surface->buffers=%d",__FUNCTION__,surface->buffers );
       if (surface->buffers == 1)
          return EGL_SINGLE_BUFFER;
       else
-         return EGL_BACK_BUFFER;
-   case PBUFFER:
+         return EGL_BACK_BUFFER;     
+   }
+   case PBUFFER:{
+	   ALOGI("%s surface->type=PBUFFER",__FUNCTION__);
       return EGL_BACK_BUFFER;
-   case PIXMAP:
+   }
+   case PIXMAP:{
+	   ALOGI("%s surface->type=PIXMAP",__FUNCTION__);
       return EGL_SINGLE_BUFFER;
-   default:
+   }
+   default:{
+	   ALOGI("%s surface->type=EGL_NONE",__FUNCTION__);
       UNREACHABLE();
       return EGL_NONE;
+  }
    }
 }
 

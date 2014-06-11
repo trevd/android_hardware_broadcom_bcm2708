@@ -51,7 +51,7 @@ static void send_bound_pixmaps(void);
 
 VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int name[3], int count)
 {
-   ALOGI("%s",__FUNCTION__);
+   ALOGI("%s name[0]=%d name[1]=%d name[2]=%d count=%d",__FUNCTION__,name[0], name[1], name[2],count);
    char buf[64];
    vcos_snprintf(buf,sizeof(buf),"KhanSemaphore%08x%08x%08x", name[0], name[1], name[2]);
    return vcos_named_semaphore_create(sem, buf, count);
@@ -59,8 +59,10 @@ VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int n
 
 uint64_t khronos_platform_get_process_id()
 {
-   ALOGI("%s",__FUNCTION__);
-   return vcos_process_id_current();
+   uint64_t result =vcos_process_id_current();
+   ALOGI("%s %lld",__FUNCTION__,result);
+   
+   return result;
 }
 
 static bool process_attached = false;
@@ -72,7 +74,7 @@ void *platform_tls_get(PLATFORM_TLS_T tls)
    if (!process_attached)
       /* TODO: this isn't thread safe */
    {
-      vcos_log_trace("Attaching process");
+      ALOGI("Attaching process");
       client_process_attach();
       process_attached = true;
       tls = client_tls;
@@ -445,10 +447,10 @@ void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
 static bool have_default_dwin[NUM_WIN];
 static EGL_DISPMANX_WINDOW_T default_dwin[NUM_WIN];
 
-static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
+static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win,int wid)
 {
    ALOGI("%s win=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)win,(uint)win,NUM_WIN);
-   int wid =  (int)win;
+  
    if(wid>-NUM_WIN && wid <=0) {
 	  ALOGI("%s wid=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)wid,(uint)wid,NUM_WIN);
       /*
@@ -473,7 +475,7 @@ static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
          vc_dispmanx_display_get_info(display, &info);
          int32_t dw = info.width, dh = info.height;
 
-         DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( 0 );
+         DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( win );
          VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
          VC_RECT_T dst_rect;
          VC_RECT_T src_rect;
@@ -529,7 +531,7 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
 {
 	ALOGI("%s ENTER win=%d[0x%x] width=%d height=%d swapchain_count=%d",__FUNCTION__,(int)win,(int)win,(*width),(*height),(*swapchain_count));
-   EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
+   EGL_DISPMANX_WINDOW_T *dwin = check_default(win,0);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
    vcos_assert(dwin->height < 1<<16); // sanity check
@@ -542,7 +544,7 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
 uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win)
 {
 	ALOGI("%s ENTER dpy=%d win=%d[0x%x]",__FUNCTION__,dpy,(int)win,(int)win);
-   EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
+   EGL_DISPMANX_WINDOW_T *dwin = check_default(win,0);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
    vcos_assert(dwin->height < 1<<16); // sanity check

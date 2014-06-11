@@ -95,7 +95,7 @@ int dispmanx_alloc(private_handle_t* handle)
     src_rect.height = handle->brcm_handle->window.height << 16;
 
     uint32_t dummy = 0;
-    handle->brcm_handle->dispman_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, dst_rect.width,
+    handle->brcm_handle->dispman_resource = vc_dispmanx_resource_create(VC_IMAGE_XRGB8888, dst_rect.width,
             dst_rect.height, &dummy);
 
     DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
