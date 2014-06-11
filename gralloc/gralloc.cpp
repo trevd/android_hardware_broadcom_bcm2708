@@ -34,12 +34,12 @@
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include "bcm_host.h"
+#include <gralloc/bcm_host.h>
 
-#include "gralloc_priv.h"
+#include <gralloc/gralloc_priv.h>
 #include "gr.h"
 
-#include "gralloc_dispmanx.h"
+#include <gralloc/dispmanx.h>
 
 
 /*****************************************************************************/

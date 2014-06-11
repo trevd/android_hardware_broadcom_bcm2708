@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#define LOG_TAG "GRALLOC-FRAMEBUFFER"
 #include <sys/mman.h>
 
 #include <dlfcn.h>
@@ -37,10 +37,10 @@
 #include <linux/fb.h>
 #endif
 
-#include "gralloc_priv.h"
+#include <gralloc/gralloc_priv.h>
 #include "gr.h"
 
-#include "gralloc_dispmanx.h"
+#include <gralloc/dispmanx.h>
 
 /*****************************************************************************/
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#define LOG_TAG "GRALLOC-MAPPER"
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
@@ -30,9 +30,9 @@
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include "gralloc_priv.h"
+#include <gralloc/gralloc_priv.h>
 
-#include "gralloc_dispmanx.h"
+#include <gralloc/dispmanx.h>
 
 
 /* desktop Linux needs a little help with gettid() */

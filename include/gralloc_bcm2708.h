@@ -22,7 +22,9 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <EGL/eglplatform.h>
-#include <vc_dispmanx_types.h>
+#include <vmcs_host/vc_dispmanx_types.h>
+#include <gralloc/gralloc_priv.h>
+
 static const int GRALLOC_PRIV_TYPE_MM_RESOURCE = 0;
 static const int GRALLOC_PRIV_TYPE_GL_RESOURCE = 1;
 

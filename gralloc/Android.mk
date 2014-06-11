@@ -22,19 +22,23 @@ endif
 
 include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../userland/host_applications/linux/libs/bcm_host/include
-LOCAL_C_INCLUDES += vendor/rpi/rpi/userland
 
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libbcm_host libvchostif libgralloc_brcm libgralloc_dispmanx
+LOCAL_CFLAGS:= 	-DUSE_VCHIQ_ARM -DVCHI_BULK_ALIGN=1 -DVCHI_BULK_GRANULARITY=1 \
+				-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
+				-DEGL_SERVER_DISPMANX -DEGL_EGLEXT_ANDROID_STRUCT_HEADER
+
+LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
+
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
+LOCAL_SHARED_LIBRARIES := liblog libcutils libvchostif libgralloc.bcm2708
 
 LOCAL_SRC_FILES := 	\
-	gralloc.cpp 	\
+	gralloc.cpp	 	\
 	framebuffer.cpp \
-	mapper.cpp
+	mapper.cpp \
+	dispmanx.cpp
 	
 LOCAL_MODULE := gralloc.bcm2708
-LOCAL_CFLAGS += -DLOG_TAG=\"gralloc.bcm2708\"
+
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)

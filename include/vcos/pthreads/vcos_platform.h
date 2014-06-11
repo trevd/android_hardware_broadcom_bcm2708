@@ -84,7 +84,9 @@ extern "C" {
 #define VCOS_ALWAYS_WANT_LOGGING
 
 #ifdef __linux__
+#ifndef ANDROID
 #define VCOS_HAVE_BACKTRACE    1
+#endif
 #endif
 
 #define VCOS_SO_EXT  ".so"

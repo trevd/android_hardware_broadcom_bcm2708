@@ -1,12 +1,20 @@
 
-#PRODUCT_VENDOR_KERNEL_HEADERS := hardware/broadcom/kernel-headers
-TARGET_DEBUG_GRALLOC := true
+
+
+# OpenGLES Implementation
+PRODUCT_PACKAGES += \
+	libvcos \
+	libvchiq_arm \
+	libvchostif
+	libEGL.bcm2708
 
 # hw composer HAL
 PRODUCT_PACKAGES += \
-	hwcomposer.bcm2835
+	hwcomposer.bcm2708
 	
-# libconvertformat
+# Gralloc
 PRODUCT_PACKAGES += \
-	gralloc.bcm2835
+	libgralloc.bcm2708 \
+	gralloc.bcm2708
+
 

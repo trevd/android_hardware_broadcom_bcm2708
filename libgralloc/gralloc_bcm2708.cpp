@@ -17,10 +17,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <gralloc_bcm2708.h>
-#include <system/window.h>
 #define LOG_TAG "GRALLOC_BRCM"
+#include <gralloc/gralloc_brcm.h>
+#include <gralloc/gralloc_priv.h>
+#include <gralloc/gralloc_bcm2708.h>
+#include <system/window.h>
+#include <cutils/log.h>
+
 EGL_DISPMANX_WINDOW_T* gralloc_private_handle_from_native_window(EGLNativeWindowType window)
 {
     EGL_DISPMANX_WINDOW_T *win = (EGL_DISPMANX_WINDOW_T*) malloc(sizeof(EGL_DISPMANX_WINDOW_T));

@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-#include "gralloc_dispmanx.h"
-#include "bcm_host.h"
-#include <utils/Log.h>
+#include <gralloc/gralloc_brcm.h>
+#include <gralloc/dispmanx.h>
+#include <gralloc/bcm_host.h>
+#include <cutils/log.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,15 +33,8 @@
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
 
-#ifndef DEBUG_DISPMANX
-#ifdef ALOGV
-#undef ALOGV
-#endif
-#endif
-
 void alloc_dispmanx_window_size(private_handle_t* handle)
 {
-	ALOGV("%s handle=%p",__FUNCTION__,handle);
     DISPMANX_MODEINFO_T info;
     EGL_DISPMANX_WINDOW_T window;
     vc_dispmanx_display_get_info(handle->brcm_handle->dispman_display, &info);
@@ -51,7 +45,6 @@ void alloc_dispmanx_window_size(private_handle_t* handle)
 
 void alloc_dispmanx_default_values(private_handle_t* handle)
 {
-    ALOGV("%s handle=%p",__FUNCTION__,handle);
     handle->brcm_handle->gl_format = GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE;
     handle->brcm_handle->stride = ALIGN_UP(handle->brcm_handle->window.width, 32);
     handle->brcm_handle->res_type = GRALLOC_PRIV_TYPE_MM_RESOURCE;
@@ -60,14 +53,12 @@ void alloc_dispmanx_default_values(private_handle_t* handle)
 
 void open_display(private_handle_t* handle)
 {
-    ALOGI("%s handle=%p",__FUNCTION__,handle);
     handle->brcm_handle->dispman_display = vc_dispmanx_display_open(0);
 }
 
 void write_buffer_dispmanx(private_handle_t* handle)
 {
     //TODO: get image type from private_handle_t
-    ALOGI("%s handle=%p",__FUNCTION__,handle);
     VC_IMAGE_TYPE_T type = VC_IMAGE_RGBA565;
     VC_RECT_T dst_rect;
 
@@ -83,7 +74,6 @@ void write_buffer_dispmanx(private_handle_t* handle)
 
 int dispmanx_alloc(private_handle_t* handle)
 {
-    ALOGI("%s handle=%p",__FUNCTION__,handle);
     bcm_host_init();
     VC_RECT_T src_rect;
     VC_RECT_T dst_rect;
@@ -121,7 +111,6 @@ int dispmanx_alloc(private_handle_t* handle)
 
 int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int h, void** vaddr)
 {
-    ALOGI("%s handle=%p",__FUNCTION__,handle);
     // this is called when a buffer is being locked for software
     // access. in thin implementation we have nothing to do since
     // not synchronization with the h/w is needed.
@@ -140,7 +129,6 @@ int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int 
 
 int dispmanx_unlock(private_handle_t* handle)
 {
-    ALOGI("%s handle=%p",__FUNCTION__,handle);
     // flush the data cache
     write_buffer_dispmanx(handle);
 
