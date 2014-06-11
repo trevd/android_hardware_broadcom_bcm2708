@@ -27,7 +27,7 @@
 
 #include <EGL/egl.h>
 
-#include <bcm_host.h>
+#include <gralloc/bcm_host.h>
 
 #define HWC_DBG 1
 
