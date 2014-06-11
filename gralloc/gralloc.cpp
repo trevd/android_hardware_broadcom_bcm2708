@@ -223,12 +223,17 @@ static int gralloc_alloc(alloc_device_t* dev,
         int w, int h, int format, int usage,
         buffer_handle_t* pHandle, int* pStride)
 {
+    ALOGI("%s format=%d[0x%x]",__FUNCTION__,format,format);
     if (!pHandle || !pStride)
         return -EINVAL;
 
     size_t size, stride;
+
     int align = 4;
     int bpp = 0;
+    int pad = 1;
+	unsigned int tempw	 = (w+31)&0xFFFFFFE0;
+	unsigned int temph	 = (h+31)&0xFFFFFFE0;
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
@@ -241,33 +246,55 @@ static int gralloc_alloc(alloc_device_t* dev,
         case HAL_PIXEL_FORMAT_RGB_565:
         case HAL_PIXEL_FORMAT_RGBA_5551:
         case HAL_PIXEL_FORMAT_RGBA_4444:
+			tempw	 = (w+63)&0xFFFFFFC0;
             bpp = 2;
             break;
-        default:
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YV12:
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+			tempw	 = (w+63)&0xFFFFFFC0;
+            bpp = 2;
+		    pad = 0;
+            break;
+		case HAL_PIXEL_FORMAT_YCbCr_422_I:
+			tempw	 = (w+63)&0xFFFFFFC0;
+			bpp = 4;
+			pad = 0;
+            break;
+	 default:
             return -EINVAL;
     }
     size_t bpr = (w*bpp + (align-1)) & ~(align-1);
+	if (!(usage & GRALLOC_USAGE_HW_FB)) {
+	bpr = (tempw*bpp + (align-1)) & ~(align-1);
+	}
     size = bpr * h;
+	if (!(usage & GRALLOC_USAGE_HW_FB)) {
+		size = bpr*temph;
+	}
     stride = bpr / bpp;
-
-    int err;
+	if(pad==0) {
+		tempw = w;
+		temph =  h;
+		stride = w;
+	}
+    int err =0;
     if (usage & GRALLOC_USAGE_HW_FB) {
         err = gralloc_alloc_framebuffer(dev, size, usage, pHandle);
     } else {
         err = gralloc_alloc_buffer(dev, size, usage, pHandle);
         private_handle_t* hnd = (private_handle_t*)*pHandle;
-        hnd->brcm_handle->stride = stride;
-//        hnd->brcm_handle->pixelformat = format;
-    }
 
+    }
     if (err < 0) {
+        ALOGE("%s: err = %x",__FUNCTION__,err);
         return err;
     }
 
     *pStride = stride;
     return 0;
 }
-
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
@@ -312,6 +339,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
     int status = -EINVAL;
+    ALOGI("%s name=%s",__FUNCTION__,name);
     bcm_host_init();
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;

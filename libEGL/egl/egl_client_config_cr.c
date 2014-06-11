@@ -258,14 +258,22 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
 #if EGL_ANDROID_framebuffer_target
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
          switch (value) {
-         case EGL_DONT_CARE:
-         case EGL_TRUE:
+         case EGL_DONT_CARE:{
+			ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_DONT_CARE[0x%x]",__FUNCTION__,value);
+			break ;
+		}
+         case EGL_TRUE:{
+			 ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_TRUE[0x%x]",__FUNCTION__,value);
+            break;
+		 }
          case EGL_FALSE:{
-			ALOGI("%s EGL_ANDROID_framebuffer_target - Breaking",__FUNCTION__);
+			ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_FALSE[0x%x]",__FUNCTION__,value);
             break;
          }
-         default:
+         default:{
+			ALOGI("%s EGL_ANDROID_framebuffer_target default case value=0x%x",__FUNCTION__,value);
             return false;
+         }
          }
          break;
 #endif
@@ -361,7 +369,7 @@ could return a list whose first config has a depth of 8888.
 
 static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
-	ALOGI("%s",__FUNCTION__);
+   //ALOGI("%s",__FUNCTION__);
    FEATURES_T features0 = formats[id0].features;
    FEATURES_T features1 = formats[id1].features;
 
@@ -437,7 +445,7 @@ static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_b
 
 void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
-	ALOGI("%s",__FUNCTION__);
+	//ALOGI("%s",__FUNCTION__);
    int i, j;
 
    for (i = 1; i < EGL_MAX_CONFIGS; i++)
