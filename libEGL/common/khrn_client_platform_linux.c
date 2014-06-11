@@ -25,7 +25,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #define VCOS_LOG_CATEGORY (&khrn_client_log)
-
+#define LOG_TAG "khrn_client_platform_linux"
+#include <utils/Log.h>
 #include <khronos/common/khrn_client_platform.h>
 #include <khronos/common/khrn_client.h>
 #include <khronos/common/khrn_client_rpc.h>
@@ -33,19 +34,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#ifdef WANT_X
-#include "X11/Xlib.h"
-#endif
 
 extern VCOS_LOG_CAT_T khrn_client_log;
 
 extern void vc_vchi_khronos_init();
 
 static void send_bound_pixmaps(void);
-#ifdef WANT_X
-static void dump_hierarchy(Window w, Window thisw, Window look, int level);
-static void dump_ancestors(Window w);
-#endif
 
 //see helpers\scalerlib\scalerlib_misc.c
 //int32_t scalerlib_convert_vcimage_to_display_element()
@@ -53,23 +47,11 @@ static void dump_ancestors(Window w);
 #define CHROMA_KEY_565 0x0001
 //
 
-#ifdef WANT_X
-static Display *hacky_display = 0;
-
-static XErrorHandler old_handler = (XErrorHandler) 0 ;
-static int application_error_handler(Display *display, XErrorEvent *theEvent)
-{
-   vcos_log_trace(
-   		"Ignoring Xlib error: error code %d request code %d\n",
-   		theEvent->error_code,
-   		theEvent->request_code) ;
-   return 0 ;
-}
-#endif
 
 
 VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int name[3], int count)
 {
+   ALOGI("%s",__FUNCTION__);
    char buf[64];
    vcos_snprintf(buf,sizeof(buf),"KhanSemaphore%08x%08x%08x", name[0], name[1], name[2]);
    return vcos_named_semaphore_create(sem, buf, count);
@@ -77,6 +59,7 @@ VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int n
 
 uint64_t khronos_platform_get_process_id()
 {
+   ALOGI("%s",__FUNCTION__);
    return vcos_process_id_current();
 }
 
@@ -85,7 +68,7 @@ static bool process_attached = false;
 void *platform_tls_get(PLATFORM_TLS_T tls)
 {
    void *ret;
-
+	ALOGI("%s",__FUNCTION__);
    if (!process_attached)
       /* TODO: this isn't thread safe */
    {
@@ -115,6 +98,7 @@ void *platform_tls_get(PLATFORM_TLS_T tls)
 
 void *platform_tls_get_check(PLATFORM_TLS_T tls)
 {
+  ALOGI("%s",__FUNCTION__);
    return platform_tls_get(tls);
 }
 
@@ -143,6 +127,7 @@ void platform_hint_thread_finished()
 **/
 void *khrn_platform_malloc(size_t size, const char * name)
 {
+	ALOGI("%s",__FUNCTION__);
    return vcos_malloc(size, name);
 }
 
@@ -153,6 +138,7 @@ void *khrn_platform_malloc(size_t size, const char * name)
 **/
 void khrn_platform_free(void *v)
 {
+	ALOGI("%s",__FUNCTION__);
    if (v)
    {
       vcos_free(v);
@@ -162,109 +148,9 @@ void khrn_platform_free(void *v)
 #endif
 
 
-#ifdef WANT_X
-static XImage *current_ximage = NULL;
-
-static KHRN_IMAGE_FORMAT_T ximage_to_image_format(int bits_per_pixel, unsigned long red_mask, unsigned long green_mask, unsigned long blue_mask)
-{
-   if (bits_per_pixel == 16 /*&& red_mask == 0xf800 && green_mask == 0x07e0 && blue_mask == 0x001f*/)
-      return RGB_565_RSO;
-   //else if (bits_per_pixel == 24 && red_mask == 0xff0000 && green_mask == 0x00ff00 && blue_mask == 0x0000ff)
-   //   return RGB_888_RSO;
-   else if (bits_per_pixel == 24 && red_mask == 0x0000ff && green_mask == 0x00ff00 && blue_mask == 0xff0000)
-      return BGR_888_RSO;
-   else if (bits_per_pixel == 32 /*&& red_mask == 0x0000ff && green_mask == 0x00ff00 && blue_mask == 0xff0000*/)
-      return ABGR_8888_RSO; //meego uses alpha channel
-   else if (bits_per_pixel == 32 && red_mask == 0xff0000 && green_mask == 0x00ff00 && blue_mask == 0x0000ff)
-      return ARGB_8888_RSO;
-   else
-   {
-      vcos_log_warn("platform_get_pixmap_info unknown image format\n");
-      return IMAGE_FORMAT_INVALID;
-   }
-}
-
-bool platform_get_pixmap_info(EGLNativePixmapType pixmap, KHRN_IMAGE_WRAP_T *image)
-{
-   Window r;
-   int x, y;
-   unsigned int w, h, b, d;
-   KHRN_IMAGE_FORMAT_T format;
-   XImage *xi;
-   XWindowAttributes attr;
-   Status rc;
-
-   vcos_log_trace("platform_get_pixmap_info !!!");
-
-   if (!XGetGeometry(hacky_display, (Drawable)pixmap, &r, &x, &y, &w, &h, &b, &d))
-      return false;
-
-   vcos_log_trace("platform_get_pixmap_info %d geometry = %d %d %d %d",(int)pixmap,
-              x, y, w, h);
-
-   xi = XGetImage(hacky_display, (Drawable)pixmap, 0, 0, w, h, 0xffffffff, ZPixmap);
-   if (xi == NULL)
-      return false;
-
-   vcos_log_trace("platform_get_pixmap_info ximage = %d %d %d 0x%08x %d %x %x %x",
-              xi->width, xi->height, xi->bytes_per_line, (uint32_t)xi->data,
-              xi->bits_per_pixel, (uint32_t)xi->red_mask,
-              (uint32_t)xi->green_mask, (uint32_t)xi->blue_mask);
-
-   format = ximage_to_image_format(xi->bits_per_pixel, xi->red_mask, xi->green_mask, xi->blue_mask);
-   if (format == IMAGE_FORMAT_INVALID)
-   {
-      XDestroyImage(xi);
-      return false;
-   }
-
-   image->format = format;
-   image->width = xi->width;
-   image->height = xi->height;
-   image->stride = xi->bytes_per_line;
-   image->aux = NULL;
-   image->storage = xi->data;
-
-//hacking to see if this pixmap is actually the offscreen pixmap for the window that is our current surface
-   {
-      int xw, yw;
-      unsigned int ww, hw, bw, dw;
-      unsigned long pixel;
-      Window rw,win  = (Window)CLIENT_GET_THREAD_STATE()->opengl.draw->win;
-      vcos_log_trace("current EGL surface win %d ", (int)win);
-      if(win!=0)
-      {
-         /* Install our error handler to override Xlib's termination behavior */
-         old_handler = XSetErrorHandler(application_error_handler) ;
-
-         XGetGeometry(hacky_display, (Drawable)win, &rw, &xw, &yw, &ww, &hw, &bw, &dw);
-         vcos_log_trace("%dx%d", ww, hw);
-         if(ww==w && hw==h)
-         {
-            //this pixmap is the same size as our current window
-            pixel = XGetPixel(xi,w/2,h/2);
-            vcos_log_trace("Pixmap centre pixel 0x%lx%s",pixel,pixel==CHROMA_KEY_565 ? "- chroma key!!" : "");
-            if(pixel == CHROMA_KEY_565)//the pixmap is also full of our magic chroma key colour, we want to copy the server side EGL surface.
-               image->aux = (void *)CLIENT_GET_THREAD_STATE()->opengl.draw->serverbuffer ;
-         }
-
-         (void) XSetErrorHandler(old_handler) ;
-      }
-   }
-//
-
-   current_ximage = xi;
-   return true;
-}
-
-void khrn_platform_release_pixmap_info(EGLNativePixmapType pixmap, KHRN_IMAGE_WRAP_T *image)
-{
-   XDestroyImage(current_ximage);
-   current_ximage = NULL;
-}
-#else
 static KHRN_IMAGE_FORMAT_T convert_format(uint32_t format)
-{
+{	
+	ALOGI("%s",__FUNCTION__);
    switch (format & ~EGL_PIXEL_FORMAT_USAGE_MASK_BRCM) {
       case EGL_PIXEL_FORMAT_ARGB_8888_PRE_BRCM: return (KHRN_IMAGE_FORMAT_T)(ABGR_8888 | IMAGE_FORMAT_PRE);
       case EGL_PIXEL_FORMAT_ARGB_8888_BRCM:     return ABGR_8888;
@@ -277,7 +163,8 @@ static KHRN_IMAGE_FORMAT_T convert_format(uint32_t format)
 
 bool platform_get_pixmap_info(EGLNativePixmapType pixmap, KHRN_IMAGE_WRAP_T *image)
 {
-   image->format = convert_format(((uint32_t *)pixmap)[4]);
+ ALOGI("%s",__FUNCTION__);
+  image->format = convert_format(((uint32_t *)pixmap)[4]);
    image->width = ((uint32_t *)pixmap)[2];
    image->height = ((uint32_t *)pixmap)[3];
 
@@ -292,16 +179,18 @@ void khrn_platform_release_pixmap_info(EGLNativePixmapType pixmap, KHRN_IMAGE_WR
 {
    /* Nothing to do */
 }
-#endif
+
 
 void platform_get_pixmap_server_handle(EGLNativePixmapType pixmap, uint32_t *handle)
 {
+  ALOGI("%s",__FUNCTION__);
    handle[0] = ((uint32_t *)pixmap)[0];
    handle[1] = ((uint32_t *)pixmap)[1];
 }
 
 bool platform_match_pixmap_api_support(EGLNativePixmapType pixmap, uint32_t api_support)
 {
+  ALOGI("%s",__FUNCTION__);
    return
       (!(api_support & EGL_OPENGL_BIT) || (((uint32_t *)pixmap)[4] & EGL_PIXEL_FORMAT_RENDER_GL_BRCM)) &&
       (!(api_support & EGL_OPENGL_ES_BIT) || (((uint32_t *)pixmap)[4] & EGL_PIXEL_FORMAT_RENDER_GLES_BRCM)) &&
@@ -313,6 +202,7 @@ bool platform_match_pixmap_api_support(EGLNativePixmapType pixmap, uint32_t api_
 
 bool platform_use_global_image_as_egl_image(uint32_t id_0, uint32_t id_1, EGLNativePixmapType pixmap, EGLint *error)
 {
+   ALOGI("%s",__FUNCTION__);
    return true;
 }
 
@@ -327,6 +217,7 @@ void platform_release_global_image(uint32_t id_0, uint32_t id_1)
 void platform_get_global_image_info(uint32_t id_0, uint32_t id_1,
    uint32_t *pixel_format, uint32_t *width, uint32_t *height)
 {
+	ALOGI("%s",__FUNCTION__);
    EGLint id[2] = {id_0, id_1};
    EGLint width_height_pixel_format[3];
    verify(eglQueryGlobalImageBRCM(id, width_height_pixel_format));
@@ -346,36 +237,43 @@ void platform_get_global_image_info(uint32_t id_0, uint32_t id_1,
 
 void platform_client_lock(void)
 {
+	ALOGI("%s",__FUNCTION__);
    platform_mutex_acquire(&client_mutex);
 }
 
 void platform_client_release(void)
 {
+	ALOGI("%s",__FUNCTION__);
    platform_mutex_release(&client_mutex);
 }
 
 void platform_init_rpc(struct CLIENT_THREAD_STATE *state)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_term_rpc(struct CLIENT_THREAD_STATE *state)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_maybe_free_process(void)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_destroy_winhandle(void *a, uint32_t b)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_surface_update(uint32_t handle)
 {
+	ALOGI("%s",__FUNCTION__);
    /*
    XXX This seems as good a place as any to do the client side pixmap hack.
    (called from eglSwapBuffers)
@@ -385,16 +283,19 @@ void platform_surface_update(uint32_t handle)
 
 void egl_gce_win_change_image(void)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(0);
 }
 
 void platform_retrieve_pixmap_completed(EGLNativePixmapType pixmap)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(0);
 }
 
 void platform_send_pixmap_completed(EGLNativePixmapType pixmap)
 {
+	ALOGI("%s",__FUNCTION__);
    assert(0);
 }
 
@@ -405,209 +306,26 @@ uint32_t platform_memcmp(const void * aLeft, const void * aRight, size_t aLen)
 
 void platform_memcpy(void * aTrg, const void * aSrc, size_t aLength)
 {
+	ALOGI("%s",__FUNCTION__);
    memcpy(aTrg, aSrc, aLength);
 }
 
 
-#ifdef WANT_X
-uint32_t platform_get_handle(EGLNativeWindowType win)
-{
-   return (uint32_t)win;
-}
 
-void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
-      uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
-{
-   Window w = (Window) win;
-   XWindowAttributes attr;
-   GC gc;
-   Status rc = XGetWindowAttributes(hacky_display, w, &attr);
-
-   // check rc is OK and if it is (vcos_assert(rc == 0);?????)
-   *width = attr.width;
-   *height = attr.height;
-   *swapchain_count = 0;
-
-	 /* Hackily assume if this function is called then they want to fill with GL stuff. So fill window with chromakey. */
-   vcos_log_trace("Calling XCreateGC %d",(int)w);
-
-	 gc = XCreateGC(hacky_display, w, 0, NULL);
-	 XSetForeground(hacky_display, gc, CHROMA_KEY_565);
-
-   vcos_log_trace("Calling XFillRectangle %d %dx%d",(int)w,attr.width, attr.height);
-
-	 XFillRectangle(hacky_display, w, gc, 0, 0, attr.width, attr.height);
-
-   vcos_log_trace("Calling XFreeGC");
-
-	 XFreeGC(hacky_display, gc);
-
-   vcos_log_trace("Done platform_get_dimensions");
-    //debugging
-    dump_hierarchy(attr.root, w, 0, 0);
-}
-#endif
-
-#ifdef WANT_X
 EGLDisplay khrn_platform_set_display_id(EGLNativeDisplayType display_id)
 {
-   if(hacky_display==0)
-   {
-	   hacky_display = (Display *)display_id;
-	   return (EGLDisplay)1;
-	}
-	else
-	   return EGL_NO_DISPLAY;
-}
-#else
-EGLDisplay khrn_platform_set_display_id(EGLNativeDisplayType display_id)
-{
+   ALOGI("%s display_id=%d[0x%x]",__FUNCTION__,(int)display_id,(int)display_id);
    if (display_id == EGL_DEFAULT_DISPLAY)
       return (EGLDisplay)1;
    else
       return EGL_NO_DISPLAY;
 }
-#endif
-
-#ifdef WANT_X
-static void dump_hierarchy(Window w, Window thisw, Window look, int level)
-{
-   Window root_dummy, parent_dummy, *children;
-   unsigned int i, nchildren;
-   XWindowAttributes attr;
-
-   XGetWindowAttributes(hacky_display, w, &attr);
-   XQueryTree(hacky_display, w, &root_dummy, &parent_dummy, &children, &nchildren);
-
-   for (i = 0; i < level; i++)
-   {
-         vcos_log_trace(" ");
-   }
-   vcos_log_trace( "%d %d%s%s",
-              attr.map_state, (int)w,
-              (w==look)?" <-- LOOK FOR ME!":((w==thisw)?" <-- THIS WINDOW":""),
-              children?"":" no children");
-
-   if (children)
-   {
-      for (i = 0; i < nchildren; i++)
-      {
-         dump_hierarchy(children[i], thisw, look, level + 1);
-      }
-      XFree(children);
-   }
-}
-
-static void dump_ancestors(Window w)
-{
-   Window root_dummy, *children;
-   unsigned int i, nchildren;
-
-   Window grandparent,parent = w, child = 0;
-   unsigned int rlayer = ~0;
-   bool bidirectional;
-   vcos_log_trace("walking back up heirarchy");
-   while(parent)
-   {
-      bidirectional = false;
-      if(!XQueryTree(hacky_display, parent, &root_dummy, &grandparent, &children, &nchildren))
-         break;
-      if (children)
-      {
-         for (i = 0; i < nchildren; i++)
-         {
-            if (children[i] == child)
-            {
-               bidirectional = true;
-               rlayer = i;
-            }
-         }
-         XFree(children);
-      }
-      vcos_log_trace("%s%s%d", bidirectional ? "<" : "", (child>0) ? "->" : "", (int)parent);
-
-      child = parent;
-      parent = grandparent;
-
-   }
-   vcos_log_trace("->end");
-}
-
-
-uint32_t khrn_platform_get_window_position(EGLNativeWindowType win)
-{
-   Window w = (Window) win;
-   Window dummy;
-   XWindowAttributes attr;
-   Window look_for_me, root_dummy, root_dummy2, parent_dummy, *children;
-   int x, y;
-   unsigned int layer, i, nchildren;
-
-   //the assumption is that windows are at the 2nd level i.e. in the below
-   //root_dummy/attr.root -> look_for_me -> w
-   vcos_log_trace("Start khrn_platform_get_window_position");
-
-   XGetWindowAttributes(hacky_display, w, &attr);
-
-   vcos_log_trace("XGetWindowAttributes");
-
-   if (attr.map_state == IsViewable)
-   {
-      XTranslateCoordinates(hacky_display, w, attr.root, 0, 0, &x, &y, &dummy);
-
-      vcos_log_trace("XTranslateCoordinates");
-
-      XQueryTree(hacky_display, w, &root_dummy, &look_for_me, &children, &nchildren);
-      if (children) XFree(children);
-      XQueryTree(hacky_display, attr.root, &root_dummy2, &parent_dummy, &children, &nchildren);
-
-      vcos_log_trace("XQueryTree");
-
-      layer = ~0;
-
-      vcos_log_trace("Dumping hierarchy %d %d (%d)", (int)w, (int)look_for_me, (int)root_dummy);
-      dump_hierarchy(attr.root, w, look_for_me, 0);
-
-      if (children)
-      {
-         for (i = 0; i < nchildren; i++)
-         {
-            if (children[i] == look_for_me)
-               layer = i;
-         }
-         XFree(children);
-      }
-
-      vcos_log_trace("XFree");
-
-      if (layer == ~0)
-      {
-         vcos_log_error("EGL window isn't child of root", i);
-
-         //to try and find out where this window has gone, let us walk back up the heirarchy
-         dump_ancestors(w);
-         return ~0;
-      }
-      else
-      {
-         vcos_log_trace("End khrn_platform_get_window_position - visible");
-         return x | y << 12 | layer << 24;
-      }
-   }
-   else
-   {
-      vcos_log_trace("End khrn_platform_get_window_position - invisible");
-
-      return ~0;      /* Window is invisible */
-   }
-}
-#else
 static int xxx_position = 0;
 uint32_t khrn_platform_get_window_position(EGLNativeWindowType win)
 {
+	ALOGI("%s",__FUNCTION__);
    return xxx_position;
 }
-#endif
 
 #define NUM_PIXMAP_BINDINGS 16
 static struct
@@ -620,6 +338,7 @@ static struct
 
 static void set_egl_image_color_data(EGLImageKHR egl_image, KHRN_IMAGE_WRAP_T *image)
 {
+	ALOGI("%s",__FUNCTION__);
    int line_size = (image->stride < 0) ? -image->stride : image->stride;
    int lines = KHDISPATCH_WORKSPACE_SIZE / line_size;
    int offset = 0;
@@ -657,6 +376,7 @@ static void set_egl_image_color_data(EGLImageKHR egl_image, KHRN_IMAGE_WRAP_T *i
 
 static void send_bound_pixmap(int i)
 {
+	ALOGI("%s",__FUNCTION__);
    KHRN_IMAGE_WRAP_T image;
 
    vcos_log_trace("send_bound_pixmap %d %d", i, (int)pixmap_binding[i].egl_image);
@@ -671,6 +391,7 @@ static void send_bound_pixmap(int i)
 
 static void send_bound_pixmaps(void)
 {
+	ALOGI("%s",__FUNCTION__);
    int i;
    for (i = 0; i < NUM_PIXMAP_BINDINGS; i++)
    {
@@ -683,6 +404,7 @@ static void send_bound_pixmaps(void)
 
 void khrn_platform_bind_pixmap_to_egl_image(EGLNativePixmapType pixmap, EGLImageKHR egl_image, bool send)
 {
+	ALOGI("%s",__FUNCTION__);
    int i;
    for (i = 0; i < NUM_PIXMAP_BINDINGS; i++)
    {
@@ -705,6 +427,7 @@ void khrn_platform_bind_pixmap_to_egl_image(EGLNativePixmapType pixmap, EGLImage
 
 void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
 {
+	ALOGI("%s",__FUNCTION__);
    int i;
    for (i = 0; i < NUM_PIXMAP_BINDINGS; i++)
    {
@@ -724,8 +447,10 @@ static EGL_DISPMANX_WINDOW_T default_dwin[NUM_WIN];
 
 static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
 {
-   int wid = (int)win;
+   ALOGI("%s win=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)win,(uint)win,NUM_WIN);
+   int wid =  (int)win;
    if(wid>-NUM_WIN && wid <=0) {
+	  ALOGI("%s wid=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)wid,(uint)wid,NUM_WIN);
       /*
        * Special identifiers indicating the default windows. Either use the
        * one we've got or create a new one
@@ -793,14 +518,17 @@ static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
          have_default_dwin[wid] = true;
       }
       return &default_dwin[wid];
-   } else
+   } else{
+	   ALOGI("%s Returning win=%d[0x%x] %p",__FUNCTION__,(int)win,(int)win,win);
       return (EGL_DISPMANX_WINDOW_T*)win;
+   }
 }
 
 
 void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
 {
+	ALOGI("%s ENTER win=%d[0x%x] width=%d height=%d swapchain_count=%d",__FUNCTION__,(int)win,(int)win,(*width),(*height),(*swapchain_count));
    EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
@@ -808,14 +536,17 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
    *width = dwin->width;
    *height = dwin->height;
    *swapchain_count = 0;
+   ALOGI("%s LEAVE win=%d[0x%x] width=%d height=%d swapchain_count=%d",__FUNCTION__,(int)win,(int)win,(*width),(*height),(*swapchain_count));
 }
 
 uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win)
 {
+	ALOGI("%s ENTER dpy=%d win=%d[0x%x]",__FUNCTION__,dpy,(int)win,(int)win);
    EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
    vcos_assert(dwin->height < 1<<16); // sanity check
+   ALOGI("%s LEAVE dpy=%d win=%d[0x%x]",__FUNCTION__,dpy,(int)win,(int)win);
    return dwin->element;
 }
 

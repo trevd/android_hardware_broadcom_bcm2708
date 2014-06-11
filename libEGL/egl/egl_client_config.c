@@ -25,7 +25,6 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <utils/Log.h>
 #include <khronos/common/khrn_int_common.h>
 #include <khronos/common/khrn_client_platform.h>
 #include <EGL/eglext.h>
@@ -106,7 +105,11 @@ static bool bindable_rgb(FEATURES_T features);
 static bool bindable_rgba(FEATURES_T features);
 
 #include <egl/egl_client_config_cr.c>
-
+#ifdef LOG_TAG
+#undef LOG_TAG
+#define LOG_TAG "egl_client_config"
+#endif
+#include <utils/Log.h>
 /*
    KHRN_IMAGE_FORMAT_T egl_config_get_color_format(int id)
 
@@ -313,10 +316,10 @@ uint32_t egl_config_get_api_support(int id)
    case XRGB_8888_RSO: case XRGB_8888_TF: case XRGB_8888_LT:
    case RGB_565_RSO: case RGB_565_TF: case RGB_565_LT:
 #ifndef NO_OPENVG*/
-      return (uint32_t)(EGL_OPENGL_ES_BIT | EGL_OPENVG_BIT | EGL_OPENGL_ES2_BIT);
-/*#else
+//      return (uint32_t)(EGL_OPENGL_ES_BIT | EGL_OPENVG_BIT | EGL_OPENGL_ES2_BIT);
+//#else
       return (uint32_t)(EGL_OPENGL_ES_BIT | EGL_OPENGL_ES2_BIT);
-#endif
+/*#endif
    default:
       break;
    }
@@ -338,15 +341,18 @@ uint32_t egl_config_get_api_support(int id)
 uint32_t egl_config_get_api_conformance(int id)
 {
    /* vg doesn't support multisampled surfaces properly */
-   return egl_config_get_api_support(id) & ~(FEATURES_UNPACK_MULTI(formats[id].features) ? EGL_OPENVG_BIT : 0);
+   uint32_t result = egl_config_get_api_support(id) & ~(FEATURES_UNPACK_MULTI(formats[id].features) ? EGL_OPENVG_BIT : 0);
+   ALOGI("%s result=%d id=%d",__FUNCTION__,result,id) ;
+   
+   return result;
 }
 
 bool egl_config_bpps_match(int id0, int id1) /* bpps of all buffers match */
 {
+   ALOGI("%s ENTER id0=%d id1=%d",__FUNCTION__,id0,id1) ;
    FEATURES_T config0 = formats[id0].features;
    FEATURES_T config1 = formats[id1].features;
-
-   return
+   bool result = 
       FEATURES_UNPACK_RED(config0)     == FEATURES_UNPACK_RED(config1) &&
       FEATURES_UNPACK_GREEN(config0)   == FEATURES_UNPACK_GREEN(config1) &&
       FEATURES_UNPACK_BLUE(config0)    == FEATURES_UNPACK_BLUE(config1) &&
@@ -354,6 +360,8 @@ bool egl_config_bpps_match(int id0, int id1) /* bpps of all buffers match */
       FEATURES_UNPACK_DEPTH(config0)   == FEATURES_UNPACK_DEPTH(config1) &&
       FEATURES_UNPACK_STENCIL(config0) == FEATURES_UNPACK_STENCIL(config1) &&
       FEATURES_UNPACK_MASK(config0)    == FEATURES_UNPACK_MASK(config1);
+  ALOGI("%s LEAVE result=%d true=%d id0=%d id1=%d",__FUNCTION__,result,true,id0,id1) ;
+  return result;
 }
 
 #if EGL_KHR_lock_surface
@@ -375,6 +383,7 @@ bool egl_config_bpps_match(int id0, int id1) /* bpps of all buffers match */
 
 KHRN_IMAGE_FORMAT_T egl_config_get_mapped_format(int id)
 {
+   ALOGI("%s ENTER id=%d",__FUNCTION__,id) ;
    KHRN_IMAGE_FORMAT_T result;
 
    vcos_assert(id >= 0 && id < EGL_MAX_CONFIGS);
@@ -382,7 +391,9 @@ KHRN_IMAGE_FORMAT_T egl_config_get_mapped_format(int id)
 
    /* If any t-format images were lockable, we would convert to raster format here */
    result = egl_config_get_color_format(id);
+
    vcos_assert(khrn_image_is_rso(result));
+   ALOGI("%s LEAVE result=%d id=%d",__FUNCTION__,result,id) ;
    return result;
 }
 
@@ -400,8 +411,12 @@ KHRN_IMAGE_FORMAT_T egl_config_get_mapped_format(int id)
 
 bool egl_config_is_lockable(int id)
 {
+   
+   
    vcos_assert(id >= 0 && id < EGL_MAX_CONFIGS);
-   return FEATURES_UNPACK_LOCKABLE(formats[id].features);
+   bool result = FEATURES_UNPACK_LOCKABLE(formats[id].features);
+   ALOGI("%s result=%d id=%d",__FUNCTION__,result,id) ;
+   return result;
 }
 
 #endif

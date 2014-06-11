@@ -24,7 +24,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#define LOG_TAG "egl_client_surface"
+#include <utils/Log.h>
 #define VCOS_LOG_CATEGORY (&egl_client_log_cat)
 
 #include <khronos/common/khrn_int_common.h>
@@ -90,7 +91,7 @@ extern VCOS_LOG_CAT_T egl_client_log_cat;
 static EGL_SURFACE_T* egl_surface_pool_alloc(void)
 {
    int i = 0;
-
+ALOGI("%s",__FUNCTION__);
    while(surface_pool.allocated & (1 << i))
       i++;
 
@@ -107,6 +108,7 @@ static EGL_SURFACE_T* egl_surface_pool_alloc(void)
 
 static void egl_surface_pool_free(EGL_SURFACE_T* surface)
 {
+   ALOGI("%s",__FUNCTION__);
    unsigned int i = 0;
 
    /* todo: this doesn't belong here */
@@ -161,13 +163,14 @@ bool egl_surface_check_attribs(
    bool *mipmap_texture
    )
 {
+   ALOGI("%s",__FUNCTION__);
    if (!attrib_list)
       return true;
 
    while (*attrib_list != EGL_NONE) {
       int name = *attrib_list++;
       int value = *attrib_list++;
-
+	  ALOGI("%s name=0x%x valie=0x%x",__FUNCTION__,name,value);
       switch (name) {
       case EGL_VG_COLORSPACE:
          if (value != EGL_VG_COLORSPACE_sRGB && value != EGL_VG_COLORSPACE_LINEAR)
@@ -316,6 +319,7 @@ EGL_SURFACE_T *egl_surface_create(
    EGLNativePixmapType pixmap,
    const uint32_t *pixmap_server_handle)
 {
+   ALOGI("%s",__FUNCTION__);
    KHRN_IMAGE_FORMAT_T color;
    KHRN_IMAGE_FORMAT_T depth;
    KHRN_IMAGE_FORMAT_T mask;
@@ -526,6 +530,7 @@ EGL_SURFACE_T *egl_surface_from_vg_image(
    EGLenum texture_target,
    EGLint *error)
 {
+   ALOGI("%s",__FUNCTION__);
    KHRN_IMAGE_FORMAT_T color;
    KHRN_IMAGE_FORMAT_T depth;
    KHRN_IMAGE_FORMAT_T mask;
@@ -632,6 +637,7 @@ EGL_SURFACE_T *egl_surface_from_vg_image(
 
 void egl_surface_free(EGL_SURFACE_T *surface)
 {
+   ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
 
    vcos_log_trace("egl_surface_free");
@@ -670,6 +676,7 @@ void egl_surface_free(EGL_SURFACE_T *surface)
 
 EGLint egl_surface_get_render_buffer(EGL_SURFACE_T *surface)
 {
+   ALOGI("%s",__FUNCTION__);
    switch (surface->type) {
    case WINDOW:
       if (surface->buffers == 1)
@@ -688,6 +695,7 @@ EGLint egl_surface_get_render_buffer(EGL_SURFACE_T *surface)
 
 EGLBoolean egl_surface_get_attrib(EGL_SURFACE_T *surface, EGLint attrib, EGLint *value)
 {
+   ALOGI("%s",__FUNCTION__);
    switch (attrib) {
    case EGL_VG_ALPHA_FORMAT:
       if (surface->alphaformat == NONPRE)
@@ -762,6 +770,7 @@ EGLBoolean egl_surface_get_attrib(EGL_SURFACE_T *surface, EGLint attrib, EGLint 
 
 EGLint egl_surface_set_attrib(EGL_SURFACE_T *surface, EGLint attrib, EGLint value)
 {
+   ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    switch (attrib) {
    case EGL_MIPMAP_LEVEL:
@@ -802,6 +811,7 @@ EGLint egl_surface_set_attrib(EGL_SURFACE_T *surface, EGLint attrib, EGLint valu
 
 EGLint egl_surface_get_mapped_buffer_attrib(EGL_SURFACE_T *surface, EGLint attrib, EGLint *value)
 {
+   ALOGI("%s",__FUNCTION__);
    KHRN_IMAGE_FORMAT_T format;
    bool is565;
 
@@ -906,6 +916,7 @@ EGLint egl_surface_get_mapped_buffer_attrib(EGL_SURFACE_T *surface, EGLint attri
 
 void egl_surface_maybe_free(EGL_SURFACE_T *surface)
 {
+   ALOGI("%s",__FUNCTION__);
    vcos_assert(surface);
 
    if (!surface->is_destroyed)

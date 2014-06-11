@@ -24,7 +24,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#define LOG_TAG "egl_client_config_cr"
+#include <utils/Log.h>
 /*
    A FEATURES_T is a structure represented by a bit pattern
 
@@ -106,25 +107,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *use_green, bool *use_blue, bool *use_alpha)
 {
+	ALOGI("%s attrib_list=%p use_red=%d  use_green=%d use_blue=%d use_alpha=%d",__FUNCTION__,attrib_list,(*use_red),(*use_green),(*use_blue),(*use_alpha));
    if (!attrib_list)
       return true;
 
    while (*attrib_list != EGL_NONE) {
       EGLint name = *attrib_list++;
       EGLint value = *attrib_list++;
-
-      if (name == EGL_RED_SIZE && value != 0 && value != EGL_DONT_CARE)
+	  ALOGI("%s name=0x%x value=0x%x",__FUNCTION__,name,value);
+      if (name == EGL_RED_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_red = true;
+         ALOGI("%s use_red=true",__FUNCTION__);
+      }
 
-      if (name == EGL_GREEN_SIZE && value != 0 && value != EGL_DONT_CARE)
+      if (name == EGL_GREEN_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_green = true;
+         ALOGI("%s use_green=true",__FUNCTION__);
+      }
 
-      if (name == EGL_BLUE_SIZE && value != 0 && value != EGL_DONT_CARE)
+      if (name == EGL_BLUE_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_blue = true;
+         ALOGI("%s use_blue=true",__FUNCTION__);
+		}
 
-      if (name == EGL_ALPHA_SIZE && value != 0 && value != EGL_DONT_CARE)
+      if (name == EGL_ALPHA_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_alpha = true;
-
+         ALOGI("%s use_alpha=true",__FUNCTION__);
+	  }
       switch (name) {
       case EGL_BUFFER_SIZE:
       case EGL_RED_SIZE:
@@ -246,6 +255,20 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
          }
          break;
 #endif
+#if EGL_ANDROID_framebuffer_target
+      case EGL_FRAMEBUFFER_TARGET_ANDROID:
+         switch (value) {
+         case EGL_DONT_CARE:
+         case EGL_TRUE:
+         case EGL_FALSE:{
+			ALOGI("%s EGL_ANDROID_framebuffer_target - Breaking",__FUNCTION__);
+            break;
+         }
+         default:
+            return false;
+         }
+         break;
+#endif
       default:
          return false;
       }
@@ -338,6 +361,7 @@ could return a list whose first config has a depth of 8888.
 
 static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
+	ALOGI("%s",__FUNCTION__);
    FEATURES_T features0 = formats[id0].features;
    FEATURES_T features1 = formats[id1].features;
 
@@ -413,6 +437,7 @@ static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_b
 
 void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
+	ALOGI("%s",__FUNCTION__);
    int i, j;
 
    for (i = 1; i < EGL_MAX_CONFIGS; i++)
@@ -459,7 +484,7 @@ void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool
 bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
 {
    FEATURES_T features = formats[id].features;
-
+	ALOGI("%s ENTER id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
    switch (attrib) {
    case EGL_BUFFER_SIZE:
       *value = FEATURES_UNPACK_COLOR(features);
@@ -588,7 +613,13 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
       *value = EGL_TRUE;
       return true;
 #endif
+#if EGL_ANDROID_framebuffer_target
+	case EGL_FRAMEBUFFER_TARGET_ANDROID:
+      *value = EGL_TRUE;
+      return true;
+#endif
    default:
+	  ALOGI("%s LEAVE RETURN FALSE id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
       return false;
    }
 }
@@ -639,13 +670,15 @@ bool egl_config_filter(int id, const EGLint *attrib_list)
       EGLint name = *attrib_list++;
       EGLint value = *attrib_list++;
       EGLint actual_value;
+       ALOGI("%s id=%d name=0x%x value=0x%x",__FUNCTION__,id,name,value);
 
       if (!egl_config_get_attrib(id, name, &actual_value) )
       {
+		 ALOGI("%s UNREACHABLE id=%d name=0x%x value=0x%x actual_value=0x%x",__FUNCTION__,id,name,value,actual_value);
          UNREACHABLE();
          return false;
       }
-
+	  ALOGI("%s id=%d name=0x%x value=0x%x actual_value=0x%x",__FUNCTION__,id,name,value,actual_value);	
       switch (name) {
          /* Selection Criteria: AtLeast */
       case EGL_BUFFER_SIZE:
@@ -682,6 +715,9 @@ bool egl_config_filter(int id, const EGLint *attrib_list)
       case EGL_TRANSPARENT_TYPE:
 #if EGL_ANDROID_recordable
       case EGL_RECORDABLE_ANDROID:
+#endif
+#if EGL_ANDROID_framebuffer_target
+      case EGL_FRAMEBUFFER_TARGET_ANDROID:
 #endif
          if (value != EGL_DONT_CARE && value != actual_value)
             return false;

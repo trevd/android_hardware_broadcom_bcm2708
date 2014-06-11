@@ -25,7 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define LOG_TAG __FILE__
+#define LOG_TAG "egl_client_cr"
 #include <utils/Log.h>
 /*
    EGLAPI EGLint EGLAPIENTRY eglGetError(void)
@@ -171,6 +171,10 @@ no error condition is raised in this case.
 
 EGLAPI EGLDisplay EGLAPIENTRY eglGetDisplay(EGLNativeDisplayType display_id)
 {
+   
+   
+		ALOGI("%s Returning display_id=0x%s",__FUNCTION__,display_id);
+	
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_CHECK_THREAD_STATE();
    if (thread)
       thread->error = EGL_SUCCESS;
@@ -238,31 +242,35 @@ EGLAPI EGLBoolean EGLAPIENTRY eglGetConfigs(EGLDisplay dpy, EGLConfig *configs, 
 {
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
-   EGLBoolean result;
+   EGLBoolean result = EGL_FALSE;
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
       if (!num_config) {
-		  ALOGE("%s EGL_BAD_PARAMETER  ( %d ): num_config [ %p ] ",__FUNCTION__,EGL_BAD_PARAMETER,(void*)num_config);
+			ALOGE("%s EGL_BAD_PARAMETER  ( %d ): num_config [ %p ] ",__FUNCTION__,EGL_BAD_PARAMETER,(void*)num_config);
          thread->error = EGL_BAD_PARAMETER;
          result = EGL_FALSE;
       } else if (!configs) {
          thread->error = EGL_SUCCESS;
          *num_config = EGL_MAX_CONFIGS;
+         ALOGW("%s EGL_SUCCESS[%d]: configs=%p num_config=%d",__FUNCTION__,EGL_SUCCESS,configs,EGL_MAX_CONFIGS);
          result = EGL_TRUE;
       } else {
          int i;
          for (i = 0; i < EGL_MAX_CONFIGS && i < config_size; i++)
             configs[i] = egl_config_from_id(i);
-
          thread->error = EGL_SUCCESS;
          *num_config = i;
          result = EGL_TRUE;
       }
       CLIENT_UNLOCK();
    }
-   else
-      result = EGL_FALSE;
+  
+    if(result == EGL_FALSE){
+		ALOGI("%s Returning EGL_FALSE ( %d )",__FUNCTION__,EGL_FALSE);
+	}else{
+		ALOGI("%s Returning EGL_TRUE ( %d )",__FUNCTION__,EGL_TRUE);
+	}
 
    return result;
 }
@@ -405,11 +413,12 @@ EGLAPI EGLBoolean EGLAPIENTRY eglChooseConfig(EGLDisplay dpy, const EGLint *attr
 {
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
-   EGLBoolean result;
-	ALOGI("%s num_config=%d num_config=%p  config_size=%d config=0x%p attrib_list=0x%p dpy=0x%p",__FUNCTION__,(*num_config),num_config,config_size,configs,attrib_list,dpy);
+   EGLBoolean result = EGL_FALSE;
+	ALOGI("%s num_config=%d num_config=%p  config_size=%d config=%p attrib_list=%p dpy=%p",__FUNCTION__,(*num_config),num_config,config_size,configs,attrib_list,dpy);
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
       if (!num_config) {
+		 ALOGE("%s EGL_BAD_PARAMETER[%d]: num_config [ %p ] ",__FUNCTION__,EGL_BAD_PARAMETER,(void*)num_config); 
          thread->error = EGL_BAD_PARAMETER;
          result = EGL_FALSE;
       } else {
@@ -425,6 +434,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglChooseConfig(EGLDisplay dpy, const EGLint *attr
 
          if (!egl_config_check_attribs(attrib_list, &use_red, &use_green, &use_blue, &use_alpha)) {
             thread->error = EGL_BAD_ATTRIBUTE;
+            ALOGE("%s EGL_BAD_ATTRIBUTE[%d]: attrib_list [ %p ] ",__FUNCTION__,EGL_BAD_ATTRIBUTE,attrib_list); 
             result = EGL_FALSE;
          } else {
 
@@ -467,11 +477,13 @@ EGLAPI EGLBoolean EGLAPIENTRY eglChooseConfig(EGLDisplay dpy, const EGLint *attr
       CLIENT_UNLOCK();
    }
    
-   if(result == EGL_FALSE){
-	  ALOGI("%s Returning EGL_FALSE ( %d )",__FUNCTION__,EGL_FALSE);
-  }
+     if(result == EGL_FALSE){
+		ALOGI("%s Returning EGL_FALSE ( %d )",__FUNCTION__,EGL_FALSE);
+	}else{
+		ALOGI("%s Returning EGL_TRUE ( %d )",__FUNCTION__,EGL_TRUE);
+	}
    
-	//ALOGI("%s num_config=%d num_config=%p  config_size=%d config=0x%p attrib_list=0x%p dpy=0x%p",__FUNCTION__,(*num_config),num_config,config_size,configs,attrib_list,dpy);
+	//ALOGI("%s num_config=%d num_config=%p  config_size=%d config=%p attrib_list=%p dpy=%p",__FUNCTION__,(*num_config),num_config,config_size,configs,attrib_list,dpy);
    return result;
 }
 
@@ -546,11 +558,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglGetConfigAttrib(EGLDisplay dpy, EGLConfig confi
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result = EGL_FALSE;
-   ALOGI("%s value=%p [ %d ] attribute=%d config=0x%p dpy=0x%p",__FUNCTION__,value,(*value),attribute,config,dpy);
+   ALOGI("%s value=%p [ %d ] attribute=0x%x config=%p dpy=%p",__FUNCTION__,value,(*value),attribute,config,dpy);
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
 	  uint32_t configid = egl_config_to_id(config);
-	  ALOGI("%s EGLConfig config=0x%p configid=%d EGL_MAX_CONFIGS=%d",__FUNCTION__,config,configid,EGL_MAX_CONFIGS);
+	  ALOGI("%s EGLConfig config=%p configid=%d EGL_MAX_CONFIGS=%d",__FUNCTION__,config,configid,EGL_MAX_CONFIGS);
       if (!value) {
 		  ALOGE("%s EGL_BAD_PARAMETER  ( %d ): value [ %p ] [ %d ]",__FUNCTION__,EGL_BAD_PARAMETER,(void*)value,(*value));
          thread->error = EGL_BAD_PARAMETER;

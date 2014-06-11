@@ -24,7 +24,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#ifdef LOG_TAG
+#undef LOG_TAG
+#define LOG_TAG "egl_client"
+#endif
+#include <utils/Log.h>
+/*
 /*
    Global preconditions?
 
@@ -155,7 +160,11 @@ by an attribute value"
 
 
 #include <egl/egl_client_cr.c>
-
+#ifdef LOG_TAG
+#undef LOG_TAG
+#define LOG_TAG "egl_client"
+#endif
+#include <utils/Log.h>
 VCOS_LOG_CAT_T egl_client_log_cat;
 
 static void egl_current_release(CLIENT_PROCESS_STATE_T *process, EGL_CURRENT_T *current);
@@ -216,6 +225,7 @@ Also affects global image (and possibly others?)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLBoolean result;
 
@@ -307,6 +317,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglInitialize(EGLDisplay dpy, EGLint *major, EGLin
 
 EGLAPI EGLBoolean EGLAPIENTRY eglTerminate(EGLDisplay dpy)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
 
    vcos_log_trace("eglTerminate start. dpy=%d", (int)dpy);
@@ -408,6 +419,7 @@ is not one of the values described above.
 
 EGLAPI const char EGLAPIENTRY * eglQueryString(EGLDisplay dpy, EGLint name)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    const char *result = NULL;
@@ -579,18 +591,20 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLSurface result;
-
+	ALOGI("%s dpy=0x%x config=%p,win=%d[%p] attrib_list=%p",__FUNCTION__,dpy,config,win,win,attrib_list);
    vcos_log_trace("eglCreateWindowSurface for window %p", win);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
       uint32_t handle = platform_get_handle(dpy, win);
-
+		ALOGI("%s handle=%d[0x%x]",__FUNCTION__,handle,handle);
       if ((int)(size_t)config < 1 || (int)(size_t)config > EGL_MAX_CONFIGS) {
+		  ALOGI("%s EGL_BAD_CONFIG[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_CONFIG,EGL_NO_SURFACE);
          thread->error = EGL_BAD_CONFIG;
          result = EGL_NO_SURFACE;
       } else if (handle == PLATFORM_WIN_NONE) {
          // The platform reports that this is an invalid window handle
+         ALOGI("%s EGL_BAD_NATIVE_WINDOW[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_NATIVE_WINDOW,EGL_NO_SURFACE);
          thread->error = EGL_BAD_NATIVE_WINDOW;
          result = EGL_NO_SURFACE;
       } else {
@@ -599,6 +613,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
          bool single = false;
 
          if (!egl_surface_check_attribs(WINDOW, attrib_list, &linear, &premult, &single, 0, 0, 0, 0, 0, 0)) {
+			 ALOGI("%s EGL_BAD_ATTRIBUTE[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_ATTRIBUTE,EGL_NO_SURFACE);
             thread->error = EGL_BAD_ATTRIBUTE;
             result = EGL_NO_SURFACE;
          } else {
@@ -621,6 +636,8 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
 
             if (width <= 0 || width > EGL_CONFIG_MAX_WIDTH || height <= 0 || height > EGL_CONFIG_MAX_HEIGHT) {
                /* TODO: Maybe EGL_BAD_ALLOC might be more appropriate? */
+               
+               ALOGI("%s EGL_BAD_NATIVE_WINDOW[0x%x] [1] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_NATIVE_WINDOW,EGL_NO_SURFACE);
                thread->error = EGL_BAD_NATIVE_WINDOW;
                result = EGL_NO_SURFACE;
             } else {
@@ -816,6 +833,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
 EGLAPI EGLSurface EGLAPIENTRY eglCreatePbufferSurface(EGLDisplay dpy, EGLConfig config,
                const EGLint *attrib_list)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLSurface result;
@@ -922,6 +940,7 @@ typedef struct {
 
 static void callback_check_duplicate_pixmap(KHRN_POINTER_MAP_T *map, uint32_t key, void *value, void *data)
 {
+	ALOGI("%s",__FUNCTION__);
    PIXMAP_CHECK_DATA_T *pixmap_check_data = (PIXMAP_CHECK_DATA_T *)data;
    EGL_SURFACE_T *surface = (EGL_SURFACE_T *)value;
 
@@ -947,6 +966,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreatePixmapSurface(EGLDisplay dpy, EGLConfig c
               EGLNativePixmapType pixmap,
               const EGLint *attrib_list)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLSurface result;
@@ -1066,6 +1086,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreatePixmapSurface(EGLDisplay dpy, EGLConfig c
 //destroyed, or do we need to wait for them? (and how?)
 EGLAPI EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surf)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
@@ -1101,6 +1122,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surf)
 EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy, EGLSurface surf,
             EGLint attribute, EGLint *value)
 {
+	ALOGI("%s ENTER dpy=0x%x surf=%p attribute=0x%x value=0x%x",__FUNCTION__,dpy,surf,attribute,(*value)) ;	
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
@@ -1374,6 +1396,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSurfaceAttrib(EGLDisplay dpy, EGLSurface surf,
 
 EGLAPI EGLBoolean EGLAPIENTRY eglBindTexImage(EGLDisplay dpy, EGLSurface surf, EGLint buffer)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
@@ -1659,6 +1682,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx)
 
 static void egl_current_release(CLIENT_PROCESS_STATE_T *process, EGL_CURRENT_T *current)
 {
+	ALOGI("%s",__FUNCTION__);
    if (current->context) {
       EGL_CONTEXT_T *context = current->context;
       vcos_assert(context->is_current);
@@ -1766,6 +1790,7 @@ void egl_gl_render_callback(void)
 
 void egl_vg_render_callback(void)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
 
    CLIENT_LOCK();
@@ -1777,6 +1802,7 @@ void egl_vg_render_callback(void)
 
 static void get_color_data(EGL_SURFACE_ID_T surface_id, KHRN_IMAGE_WRAP_T *image)
 {
+	ALOGI("%s",__FUNCTION__);
    int line_size = (image->stride < 0) ? -image->stride : image->stride;
    int lines = KHDISPATCH_WORKSPACE_SIZE / line_size;
    int offset = 0;
@@ -1811,6 +1837,7 @@ static void get_color_data(EGL_SURFACE_ID_T surface_id, KHRN_IMAGE_WRAP_T *image
 
 static void retrieve_pixmap(EGL_SURFACE_T *surface, bool wait)
 {
+	ALOGI("%s",__FUNCTION__);
    UNUSED(wait);
 
    /*TODO: currently we always wait */
@@ -1834,6 +1861,7 @@ static void retrieve_pixmap(EGL_SURFACE_T *surface, bool wait)
 
 void egl_gl_flush_callback(bool wait)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
 
    CLIENT_LOCK();
@@ -1845,6 +1873,7 @@ void egl_gl_flush_callback(bool wait)
 
 void egl_vg_flush_callback(bool wait)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
 
    CLIENT_LOCK();
@@ -1856,6 +1885,7 @@ void egl_vg_flush_callback(bool wait)
 
 static bool context_and_surface_are_compatible(EGL_CONTEXT_T *context, EGL_SURFACE_T *surface)
 {
+	ALOGI("%s",__FUNCTION__);
    /*
       from section 2.2 of the (1.3) spec, a context and surface are compatible
       if:
@@ -1938,6 +1968,7 @@ static bool egl_current_set(CLIENT_PROCESS_STATE_T *process, CLIENT_THREAD_STATE
 
 static void flush_current_api(CLIENT_THREAD_STATE_T *thread)
 {
+	ALOGI("%s",__FUNCTION__);
    RPC_CALL2(eglIntFlush_impl,
                  thread,
                  EGLINTFLUSH_ID,
@@ -2078,6 +2109,7 @@ EGLAPI EGLContext EGLAPIENTRY eglGetCurrentContext(void)
 
 EGLAPI EGLSurface EGLAPIENTRY eglGetCurrentSurface(EGLint readdraw)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLSurface result;
 
@@ -2120,6 +2152,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglGetCurrentSurface(EGLint readdraw)
 
 EGLAPI EGLDisplay EGLAPIENTRY eglGetCurrentDisplay(void)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLDisplay result;
 
@@ -2181,6 +2214,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryContext(EGLDisplay dpy, EGLContext ctx, EG
 
 EGLAPI EGLBoolean EGLAPIENTRY eglWaitGL(void)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLBoolean result;
 
@@ -2203,7 +2237,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglWaitGL(void)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative(EGLint engine)
 {
-   CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
+	ALOGI("%s",__FUNCTION__);   CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLBoolean result;
 
    //TODO: "If the surface associated with the calling thread's current context is no
@@ -2224,6 +2258,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative(EGLint engine)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 {
+	ALOGI("%s",__FUNCTION__);
 #ifdef DIRECT_RENDERING
    /* Wrapper layer shouldn't call eglSwapBuffers */
    UNREACHABLE();
@@ -2363,6 +2398,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy, EGLSurface surf, EGLNativePixmapType target)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
@@ -2416,6 +2452,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy, EGLSurface surf, EG
 #ifdef EXPORT_DESTROY_BY_PID
 EGLAPI void EGLAPIENTRY eglDestroyByPidBRCM(EGLDisplay dpy, uint32_t pid_0, uint32_t pid_1)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLBoolean result;
 
@@ -2444,6 +2481,7 @@ EGLAPI void EGLAPIENTRY eglDestroyByPidBRCM(EGLDisplay dpy, uint32_t pid_0, uint
 #ifdef DIRECT_RENDERING
 EGLAPI EGLBoolean EGLAPIENTRY eglDirectRenderingPointer(EGLDisplay dpy, EGLSurface surf, void *image)
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result = EGL_FALSE;
@@ -2484,6 +2522,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglDirectRenderingPointer(EGLDisplay dpy, EGLSurfa
 #if EGL_proc_state_valid
 EGLAPI void EGLAPIENTRY eglProcStateValid( EGLDisplay dpy, EGLBoolean *result )
 {
+	ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
 
    CLIENT_LOCK();
