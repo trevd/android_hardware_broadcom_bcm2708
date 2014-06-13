@@ -1,11 +1,9 @@
 
-
-
 # OpenGLES Implementation
 PRODUCT_PACKAGES += \
 	libvcos \
 	libvchiq_arm \
-	libvchostif
+	libvchostif \
 	libEGL.bcm2708
 
 # hw composer HAL
