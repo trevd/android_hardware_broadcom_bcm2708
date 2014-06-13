@@ -4,7 +4,7 @@ PRODUCT_PACKAGES += \
 	libvcos \
 	libvchiq_arm \
 	libvchostif \
-	libEGL.bcm2708
+	libEGL_bcm2708
 
 # hw composer HAL
 PRODUCT_PACKAGES += \
