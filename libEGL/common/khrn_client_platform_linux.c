@@ -447,10 +447,10 @@ void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
 static bool have_default_dwin[NUM_WIN];
 static EGL_DISPMANX_WINDOW_T default_dwin[NUM_WIN];
 
-static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win,int wid)
+static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
 {
    ALOGI("%s win=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)win,(uint)win,NUM_WIN);
-  
+   int wid = (int)win;
    if(wid>-NUM_WIN && wid <=0) {
 	  ALOGI("%s wid=%u[0x%x] NUM_WIN=%u",__FUNCTION__,(uint)wid,(uint)wid,NUM_WIN);
       /*
@@ -531,7 +531,7 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
 {
 	ALOGI("%s ENTER win=%d[0x%x] width=%d height=%d swapchain_count=%d",__FUNCTION__,(int)win,(int)win,(*width),(*height),(*swapchain_count));
-   EGL_DISPMANX_WINDOW_T *dwin = check_default(win,0);
+   EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
    vcos_assert(dwin->height < 1<<16); // sanity check
@@ -544,7 +544,7 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
 uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win)
 {
 	ALOGI("%s ENTER dpy=%d win=%d[0x%x]",__FUNCTION__,dpy,(int)win,(int)win);
-   EGL_DISPMANX_WINDOW_T *dwin = check_default(win,0);
+   EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
    vcos_assert(dwin);
    vcos_assert(dwin->width < 1<<16); // sanity check
    vcos_assert(dwin->height < 1<<16); // sanity check
