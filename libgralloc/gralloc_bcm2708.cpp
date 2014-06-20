@@ -21,7 +21,6 @@
 #include <gralloc/gralloc_brcm.h>
 #include <gralloc/gralloc_priv.h>
 #include <gralloc/gralloc_bcm2708.h>
-#include <system/window.h>
 #include <cutils/log.h>
 
 EGL_DISPMANX_WINDOW_T* gralloc_private_handle_from_native_window(EGLNativeWindowType window)

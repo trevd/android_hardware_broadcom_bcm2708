@@ -28,12 +28,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef KHRN_HW_H
 #define KHRN_HW_H
 
-#include "interface/khronos/common/khrn_int_common.h"
-#include "middleware/khronos/common/khrn_image.h"
-#include "middleware/khronos/egl/egl_disp.h"
-#include "interface/khronos/include/EGL/egl.h"
-#include "interface/khronos/include/EGL/eglext.h"
-#include "interface/vcos/vcos.h"
+#include <khronos/common/khrn_int_common.h>
+#include <middleware/khronos/common/khrn_image.h>
+#include <middleware/khronos/egl/egl_disp.h>
+#include <khronos/include/EGL/egl.h>
+#include <khronos/include/EGL/eglext.h>
+#include <vcos/vcos.h>
 
 bool khrn_hw_common_init(void);
 void khrn_hw_common_term(void);

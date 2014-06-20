@@ -28,9 +28,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef KHRN_PROD_4_H
 #define KHRN_PROD_4_H
 
-#include "middleware/khronos/egl/egl_disp.h"
-#include "middleware/khronos/common/khrn_hw.h"
-#include "interface/khronos/common/khrn_int_util.h"
+#include <middleware/khronos/egl/egl_disp.h>
+#include <middleware/khronos/common/khrn_hw.h>
+#include <khronos/common/khrn_int_util.h>
 #if defined(SIMPENROSE)
    #include "tools/v3d/simpenrose/simpenrose.h"
    #ifdef SIMPENROSE_RECORD_OUTPUT

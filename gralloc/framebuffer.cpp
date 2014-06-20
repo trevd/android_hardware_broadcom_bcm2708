@@ -37,8 +37,9 @@
 #include <linux/fb.h>
 #endif
 
-#include "gralloc_priv.h"
-#include "gr.h"
+#include <gralloc/gralloc_priv.h>
+#include <gralloc/gr.h>
+
 
 /*****************************************************************************/
 

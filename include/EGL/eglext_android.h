@@ -8,7 +8,7 @@ extern "C" {
 #ifndef EGL_ANDROID_image_native_buffer
 #define EGL_ANDROID_image_native_buffer 1
 #define EGL_NATIVE_BUFFER_ANDROID       0x3140  /* eglCreateImageKHR target */
-#include <system/window.h>
+
 #endif
 
 /* Structure layout for android native buffers.

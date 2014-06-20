@@ -30,7 +30,8 @@
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include "gralloc_priv.h"
+#include <gralloc/gralloc_priv.h>
+
 
 
 /* desktop Linux needs a little help with gettid() */

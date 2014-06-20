@@ -35,8 +35,10 @@
 #include <hardware/gralloc.h>
 
 
-#include "gralloc_priv.h"
-#include "gr.h"
+#include <gralloc/gralloc_priv.h>
+#include <gralloc/gralloc_brcm.h>
+#include <gralloc/bcm_host.h>
+#include <gralloc/gr.h>
 
 
 
@@ -102,7 +104,7 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     .currentBuffer = 0,
 };
 
-void* dispmanx_alloc(private_handle_t* hnd)
+void* dispmanx_alloc(private_handle_t* handle)
 {
    uint32_t success = 0;
 	ALOGI("%s",__FUNCTION__);
@@ -135,18 +137,18 @@ void* dispmanx_alloc(private_handle_t* hnd)
    src_rect.y = 0;
    src_rect.width = display_width << 16;
    src_rect.height = display_height << 16;   
-
-   hnd->dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
-   hnd->dispman_update = vc_dispmanx_update_start( 0 );
+   handle->brcm_handle = (struct gralloc_private_handle_t*) malloc(sizeof(struct gralloc_private_handle_t));
+   handle->brcm_handle->dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+   handle->brcm_handle->dispman_update = vc_dispmanx_update_start( 0 );
          
-   hnd->dispman_element = vc_dispmanx_element_add ( hnd->dispman_update, hnd->dispman_display,
+   handle->brcm_handle->dispman_element = vc_dispmanx_element_add ( handle->brcm_handle->dispman_update, handle->brcm_handle->dispman_display,
       0/*layer*/, &dst_rect, 0/*src*/,
       &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
       
-   hnd->nativewindow.element = hnd->dispman_element;
-   hnd->nativewindow.width = display_width;
-   hnd->nativewindow.height = display_height;
-   vc_dispmanx_update_submit_sync( hnd->dispman_update );
+   handle->brcm_handle->window.element = handle->brcm_handle->dispman_element;
+   handle->brcm_handle->window.width = display_width;
+   handle->brcm_handle->window.height = display_height;
+   vc_dispmanx_update_submit_sync( handle->brcm_handle->dispman_update );
    return NULL;
 }
 /*****************************************************************************/
