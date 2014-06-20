@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#define LOG_TAG "GRALLOC-BCM2708"
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -34,12 +34,10 @@
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include <gralloc/bcm_host.h>
 
-#include <gralloc/gralloc_priv.h>
+#include "gralloc_priv.h"
 #include "gr.h"
 
-#include <gralloc/dispmanx.h>
 
 
 /*****************************************************************************/
@@ -74,57 +72,89 @@ extern int gralloc_register_buffer(gralloc_module_t const* module,
 extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
 
-#ifdef EXYNOS4210_ENHANCEMENTS
-static int gralloc_getphys(gralloc_module_t const* module, buffer_handle_t handle, void** paddr)
-{
-    /*
-    private_handle_t* hnd = (private_handle_t*)handle;
-    paddr[0] = (void*)hnd->paddr;
-    paddr[1] = (void*)(hnd->paddr + hnd->uoffset);
-    paddr[2] = (void*)(hnd->paddr + hnd->uoffset + hnd->voffset);
-    */
-    return 0;
-}
-#endif
-
 /*****************************************************************************/
 
 static struct hw_module_methods_t gralloc_module_methods = {
-        open: gralloc_device_open
+        .open = gralloc_device_open
 };
 
 struct private_module_t HAL_MODULE_INFO_SYM = {
-    base: {
-        common: {
-            tag: HARDWARE_MODULE_TAG,
-            version_major: 1,
-            version_minor: 0,
-            id: GRALLOC_HARDWARE_MODULE_ID,
-            name: "Graphics Memory Allocator Module",
-            author: "The Android Open Source Project",
-            methods: &gralloc_module_methods
+    .base = {
+        .common = {
+            .tag = HARDWARE_MODULE_TAG,
+            .version_major = 1,
+            .version_minor = 0,
+            .id = GRALLOC_HARDWARE_MODULE_ID,
+            .name = "Graphics Memory Allocator Module",
+            .author = "The Android Open Source Project",
+            .methods = &gralloc_module_methods
         },
-        registerBuffer: gralloc_register_buffer,
-        unregisterBuffer: gralloc_unregister_buffer,
-        lock: gralloc_lock,
-        unlock: gralloc_unlock,
-#ifdef EXYNOS4210_ENHANCEMENTS
-        getphys: gralloc_getphys,
-#endif
+        .registerBuffer = gralloc_register_buffer,
+        .unregisterBuffer = gralloc_unregister_buffer,
+        .lock = gralloc_lock,
+        .unlock = gralloc_unlock,
     },
-    framebuffer: 0,
-    flags: 0,
-    numBuffers: 0,
-    bufferMask: 0,
-    lock: PTHREAD_MUTEX_INITIALIZER,
-    currentBuffer: 0,
+    .framebuffer = 0,
+    .flags = 0,
+    .numBuffers = 0,
+    .bufferMask = 0,
+    .lock = PTHREAD_MUTEX_INITIALIZER,
+    .currentBuffer = 0,
 };
 
+void* dispmanx_alloc(private_handle_t* hnd)
+{
+   uint32_t success = 0;
+	ALOGI("%s",__FUNCTION__);
+ 
+   VC_RECT_T dst_rect;
+   VC_RECT_T src_rect;
+   
+
+   uint32_t display_width;
+   uint32_t display_height;
+
+   // create an EGL window surface, passing context width/height
+   success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+   if ( success < 0 )
+   {
+	   ALOGI("%s graphics_get_display_size failed",__FUNCTION__);
+      return NULL;
+   }
+    ALOGI("%s display_width=%u display_height=%u",__FUNCTION__,display_width,display_height);
+   // You can hardcode the resolution here:
+   //display_width = 640;
+   //display_height = 480;
+
+   dst_rect.x = 0;
+   dst_rect.y = 0;
+   dst_rect.width = display_width;
+   dst_rect.height = display_height;
+      
+   src_rect.x = 0;
+   src_rect.y = 0;
+   src_rect.width = display_width << 16;
+   src_rect.height = display_height << 16;   
+
+   hnd->dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+   hnd->dispman_update = vc_dispmanx_update_start( 0 );
+         
+   hnd->dispman_element = vc_dispmanx_element_add ( hnd->dispman_update, hnd->dispman_display,
+      0/*layer*/, &dst_rect, 0/*src*/,
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
+      
+   hnd->nativewindow.element = hnd->dispman_element;
+   hnd->nativewindow.width = display_width;
+   hnd->nativewindow.height = display_height;
+   vc_dispmanx_update_submit_sync( hnd->dispman_update );
+   return NULL;
+}
 /*****************************************************************************/
 
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
 {
+    ALOGI("%s",__FUNCTION__);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
 
@@ -167,19 +197,18 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         }
         vaddr += bufferSize;
     }
-
+    
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
-    dispmanx_alloc(hnd);
-
     *pHandle = hnd;
-
+	dispmanx_alloc(hnd);
     return 0;
 }
 
 static int gralloc_alloc_framebuffer(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
 {
+    ALOGI("%s",__FUNCTION__);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
     pthread_mutex_lock(&m->lock);
@@ -189,11 +218,11 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 }
 
 static int gralloc_alloc_buffer(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle)
+        size_t size, int /*usage*/, buffer_handle_t* pHandle)
 {
     int err = 0;
     int fd = -1;
-
+	ALOGI("%s",__FUNCTION__);
     size = roundUpToPageSize(size);
     
     fd = ashmem_create_region("gralloc-buffer", size);
@@ -223,7 +252,7 @@ static int gralloc_alloc(alloc_device_t* dev,
         int w, int h, int format, int usage,
         buffer_handle_t* pHandle, int* pStride)
 {
-    ALOGI("%s format=%d[0x%x]",__FUNCTION__,format,format);
+    ALOGI("%s",__FUNCTION__);
     if (!pHandle || !pStride)
         return -EINVAL;
 
@@ -235,39 +264,88 @@ static int gralloc_alloc(alloc_device_t* dev,
 	unsigned int tempw	 = (w+31)&0xFFFFFFE0;
 	unsigned int temph	 = (h+31)&0xFFFFFFE0;
     switch (format) {
-        case HAL_PIXEL_FORMAT_RGBA_8888:
-        case HAL_PIXEL_FORMAT_RGBX_8888:
-        case HAL_PIXEL_FORMAT_BGRA_8888:
-            bpp = 4;
+        case HAL_PIXEL_FORMAT_RGBA_8888:{
+			bpp = 4;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGBA_8888[%d] bpp=%d",__FUNCTION__,format,bpp);
             break;
-        case HAL_PIXEL_FORMAT_RGB_888:
-            bpp = 3;
+		}
+        case HAL_PIXEL_FORMAT_RGBX_8888:{
+			bpp = 4;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGBX_8888[%d] bpp=%d",__FUNCTION__,format,bpp);			
             break;
-        case HAL_PIXEL_FORMAT_RGB_565:
-        case HAL_PIXEL_FORMAT_RGBA_5551:
-        case HAL_PIXEL_FORMAT_RGBA_4444:
+		}
+        case HAL_PIXEL_FORMAT_BGRA_8888:{
+			bpp = 4;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_BGRA_8888[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+		}
+        case HAL_PIXEL_FORMAT_RGB_888:{
+			bpp = 3;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGB_888[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+		}
+        case HAL_PIXEL_FORMAT_RGB_565:{
 			tempw	 = (w+63)&0xFFFFFFC0;
-            bpp = 2;
+			bpp = 2;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGB_565[%d] bpp=%d",__FUNCTION__,format,bpp);
             break;
-        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-        case HAL_PIXEL_FORMAT_YV12:
-        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+		}
+        case HAL_PIXEL_FORMAT_RGBA_5551:{
+			tempw	 = (w+63)&0xFFFFFFC0;
+			bpp = 2;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGBA_5551[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+		}
+        case HAL_PIXEL_FORMAT_RGBA_4444:{
+			tempw	 = (w+63)&0xFFFFFFC0;
+			bpp = 2;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_RGBA_4444[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+		}
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:{
 			tempw	 = (w+63)&0xFFFFFFC0;
             bpp = 2;
 		    pad = 0;
+		    ALOGI("%s format=HAL_PIXEL_FORMAT_YCrCb_420_SP[%d] bpp=%d",__FUNCTION__,format,bpp);
             break;
-		case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        }
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:{
+			tempw	 = (w+63)&0xFFFFFFC0;
+            bpp = 2;
+		    pad = 0;
+		    ALOGI("%s format=HAL_PIXEL_FORMAT_YCbCr_420_SP[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+        }
+        case HAL_PIXEL_FORMAT_YV12:{
+			tempw	 = (w+63)&0xFFFFFFC0;
+            bpp = 2;
+		    pad = 0;
+		    ALOGI("%s format=HAL_PIXEL_FORMAT_YV12[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+        }
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:{
+			tempw	 = (w+63)&0xFFFFFFC0;
+            bpp = 2;
+		    pad = 0;
+		    ALOGI("%s format=HAL_PIXEL_FORMAT_YCbCr_420_P[%d] bpp=%d",__FUNCTION__,format,bpp);
+            break;
+        }
+		case HAL_PIXEL_FORMAT_YCbCr_422_I:{
 			tempw	 = (w+63)&0xFFFFFFC0;
 			bpp = 4;
 			pad = 0;
+			ALOGI("%s format=HAL_PIXEL_FORMAT_YCbCr_422_I[%d] bpp=%d",__FUNCTION__,format,bpp);
             break;
-	 default:
+       }
+	 default:{
+			ALOGI("%s format=Unknown[%d] bpp=%d",__FUNCTION__,format,bpp);
             return -EINVAL;
+       } 
+           
     }
     size_t bpr = (w*bpp + (align-1)) & ~(align-1);
 	if (!(usage & GRALLOC_USAGE_HW_FB)) {
-	bpr = (tempw*bpp + (align-1)) & ~(align-1);
+		bpr = (tempw*bpp + (align-1)) & ~(align-1);
 	}
     size = bpr * h;
 	if (!(usage & GRALLOC_USAGE_HW_FB)) {
@@ -280,13 +358,12 @@ static int gralloc_alloc(alloc_device_t* dev,
 		stride = w;
 	}
     int err =0;
-    if (usage & GRALLOC_USAGE_HW_FB) {
+     if (usage & GRALLOC_USAGE_HW_FB) {
         err = gralloc_alloc_framebuffer(dev, size, usage, pHandle);
     } else {
         err = gralloc_alloc_buffer(dev, size, usage, pHandle);
-        private_handle_t* hnd = (private_handle_t*)*pHandle;
-
     }
+
     if (err < 0) {
         ALOGE("%s: err = %x",__FUNCTION__,err);
         return err;
@@ -295,21 +372,22 @@ static int gralloc_alloc(alloc_device_t* dev,
     *pStride = stride;
     return 0;
 }
+
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
+    ALOGI("%s",__FUNCTION__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(handle);
-    free(hnd->brcm_handle);
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
         // free this buffer
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
         const size_t bufferSize = m->finfo.line_length * m->info.yres;
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
-        m->bufferMask &= ~(1<<index);
+        m->bufferMask &= ~(1<<index); 
     } else { 
         gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
                 dev->common.module);
@@ -325,6 +403,7 @@ static int gralloc_free(alloc_device_t* dev,
 
 static int gralloc_close(struct hw_device_t *dev)
 {
+    ALOGI("%s",__FUNCTION__);
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
@@ -338,9 +417,8 @@ static int gralloc_close(struct hw_device_t *dev)
 int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
-    int status = -EINVAL;
     ALOGI("%s name=%s",__FUNCTION__,name);
-    bcm_host_init();
+    int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
@@ -356,7 +434,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 
         dev->device.alloc   = gralloc_alloc;
         dev->device.free    = gralloc_free;
-
+		bcm_host_init();
         *device = &dev->device.common;
         status = 0;
     } else {

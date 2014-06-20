@@ -419,7 +419,7 @@ is not one of the values described above.
 
 EGLAPI const char EGLAPIENTRY * eglQueryString(EGLDisplay dpy, EGLint name)
 {
-	ALOGI("%s",__FUNCTION__);
+	//ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    const char *result = NULL;
@@ -430,6 +430,7 @@ EGLAPI const char EGLAPIENTRY * eglQueryString(EGLDisplay dpy, EGLint name)
       switch (name) {
       case EGL_CLIENT_APIS:
          result = "OpenGL_ES OpenVG";
+         ALOGI("%s EGL_CLIENT_APIS[%d] result=%s",__FUNCTION__,name,result);
          break;
       case EGL_EXTENSIONS:
          //TODO: this list isn't quite correct
@@ -452,14 +453,18 @@ EGLAPI const char EGLAPIENTRY * eglQueryString(EGLDisplay dpy, EGLint name)
 #endif
 #endif
             ;
+           ALOGI("%s EGL_EXTENSIONS[%d] result=%s",__FUNCTION__,name,result);
          break;
       case EGL_VENDOR:
          result = "Broadcom";
+         ALOGI("%s EGL_VENDOR[%d] result=%s",__FUNCTION__,name,result);
          break;
       case EGL_VERSION:
          result = "1.4";
+          ALOGI("%s EGL_VERSION[%d] result=%s",__FUNCTION__,name,result);
          break;
       default:
+         ALOGI("%s UNKNOWN[%d] result=EGL_BAD_PARAMETER",__FUNCTION__,name);
          thread->error = EGL_BAD_PARAMETER;
          result = NULL;
       }
@@ -633,6 +638,8 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
                if (khrn_options.double_buffer)
                   num_buffers = 2;
             }
+			width = 1920;
+			height= 1080;
 
             if (width <= 0 || width > EGL_CONFIG_MAX_WIDTH || height <= 0 || height > EGL_CONFIG_MAX_HEIGHT) {
                /* TODO: Maybe EGL_BAD_ALLOC might be more appropriate? */
@@ -1122,7 +1129,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surf)
 EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy, EGLSurface surf,
             EGLint attribute, EGLint *value)
 {
-	ALOGI("%s ENTER dpy=0x%x surf=%p attribute=0x%x value=0x%x",__FUNCTION__,dpy,surf,attribute,(*value)) ;	
+	ALOGI("%s dpy=0x%x surf=%p attribute=0x%x value=0x%x",__FUNCTION__,dpy,surf,attribute,(*value)) ;	
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;

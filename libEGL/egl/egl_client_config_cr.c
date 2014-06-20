@@ -107,32 +107,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *use_green, bool *use_blue, bool *use_alpha)
 {
-	ALOGI("%s attrib_list=%p use_red=%d  use_green=%d use_blue=%d use_alpha=%d",__FUNCTION__,attrib_list,(*use_red),(*use_green),(*use_blue),(*use_alpha));
+	ALOGV("%s attrib_list=%p use_red=%d  use_green=%d use_blue=%d use_alpha=%d",__FUNCTION__,attrib_list,(*use_red),(*use_green),(*use_blue),(*use_alpha));
    if (!attrib_list)
       return true;
 
    while (*attrib_list != EGL_NONE) {
       EGLint name = *attrib_list++;
       EGLint value = *attrib_list++;
-	  ALOGI("%s name=0x%x value=0x%x",__FUNCTION__,name,value);
+	  ALOGV("%s name=0x%x value=0x%x",__FUNCTION__,name,value);
       if (name == EGL_RED_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_red = true;
-         ALOGI("%s use_red=true",__FUNCTION__);
+         ALOGV("%s use_red=true",__FUNCTION__);
       }
 
       if (name == EGL_GREEN_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_green = true;
-         ALOGI("%s use_green=true",__FUNCTION__);
+         ALOGV("%s use_green=true",__FUNCTION__);
       }
 
       if (name == EGL_BLUE_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_blue = true;
-         ALOGI("%s use_blue=true",__FUNCTION__);
+         ALOGV("%s use_blue=true",__FUNCTION__);
 		}
 
       if (name == EGL_ALPHA_SIZE && value != 0 && value != EGL_DONT_CARE){
          *use_alpha = true;
-         ALOGI("%s use_alpha=true",__FUNCTION__);
+         ALOGV("%s use_alpha=true",__FUNCTION__);
 	  }
       switch (name) {
       case EGL_BUFFER_SIZE:
@@ -259,19 +259,19 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
          switch (value) {
          case EGL_DONT_CARE:{
-			ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_DONT_CARE[0x%x]",__FUNCTION__,value);
+			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_DONT_CARE[0x%x]",__FUNCTION__,value);
 			break ;
 		}
          case EGL_TRUE:{
-			 ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_TRUE[0x%x]",__FUNCTION__,value);
+			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_TRUE[0x%x]",__FUNCTION__,value);
             break;
 		 }
          case EGL_FALSE:{
-			ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_FALSE[0x%x]",__FUNCTION__,value);
+			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_FALSE[0x%x]",__FUNCTION__,value);
             break;
          }
          default:{
-			ALOGI("%s EGL_ANDROID_framebuffer_target default case value=0x%x",__FUNCTION__,value);
+			//ALOGI("%s EGL_ANDROID_framebuffer_target default case value=0x%x",__FUNCTION__,value);
             return false;
          }
          }
@@ -369,7 +369,7 @@ could return a list whose first config has a depth of 8888.
 
 static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
-   //ALOGI("%s",__FUNCTION__);
+   ////ALOGI("%s",__FUNCTION__);
    FEATURES_T features0 = formats[id0].features;
    FEATURES_T features1 = formats[id1].features;
 
@@ -445,7 +445,7 @@ static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_b
 
 void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
-	//ALOGI("%s",__FUNCTION__);
+	////ALOGI("%s",__FUNCTION__);
    int i, j;
 
    for (i = 1; i < EGL_MAX_CONFIGS; i++)
@@ -492,94 +492,123 @@ void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool
 bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
 {
    FEATURES_T features = formats[id].features;
-	ALOGI("%s ENTER id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
+	
    switch (attrib) {
    case EGL_BUFFER_SIZE:
       *value = FEATURES_UNPACK_COLOR(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_BUFFER_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_RED_SIZE:
       *value = FEATURES_UNPACK_RED(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_RED_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_GREEN_SIZE:
       *value = FEATURES_UNPACK_GREEN(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_GREEN_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_BLUE_SIZE:
       *value = FEATURES_UNPACK_BLUE(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_BLUE_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_LUMINANCE_SIZE:
       *value = 0;
+       //ALOGI("%s ConfigID=%d attrib=EGL_LUMINANCE_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_ALPHA_SIZE:
       *value = FEATURES_UNPACK_ALPHA(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_ALPHA_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_ALPHA_MASK_SIZE:
       *value = FEATURES_UNPACK_MASK(features);
+       //ALOGI("%s ConfigID=%d attrib=EGL_ALPHA_MASK_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_BIND_TO_TEXTURE_RGB:
       *value = bindable_rgb(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_BIND_TO_TEXTURE_RGB[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_BIND_TO_TEXTURE_RGBA:
       *value = bindable_rgba(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_BIND_TO_TEXTURE_RGBA[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_COLOR_BUFFER_TYPE:
       *value = EGL_RGB_BUFFER;
+      //ALOGI("%s ConfigID=%d attrib=EGL_COLOR_BUFFER_TYPE[0x%x] value=EGL_RGB_BUFFER[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_CONFIG_CAVEAT:
       *value = EGL_NONE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_CONFIG_CAVEAT[0x%x] value=EGL_NONE[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_CONFIG_ID:
       *value = (EGLint)(uintptr_t)egl_config_from_id(id);
+      //ALOGI("%s ConfigID=%d attrib=EGL_CONFIG_ID[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_CONFORMANT:
       *value = egl_config_get_api_conformance(id);
+      //ALOGI("%s ConfigID=%d attrib=EGL_CONFORMANT[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_DEPTH_SIZE:
       *value = FEATURES_UNPACK_DEPTH(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_DEPTH_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_LEVEL:
       *value = 0;
+      //ALOGI("%s ConfigID=%d attrib=EGL_LEVEL[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MATCH_NATIVE_PIXMAP:
       *value = 0;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MATCH_NATIVE_PIXMAP[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MAX_PBUFFER_WIDTH:
       *value = EGL_CONFIG_MAX_WIDTH;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MAX_PBUFFER_WIDTH[0x%x] value=EGL_CONFIG_MAX_WIDTH[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MAX_PBUFFER_HEIGHT:
       *value = EGL_CONFIG_MAX_HEIGHT;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MAX_PBUFFER_HEIGHT[0x%x] value=EGL_CONFIG_MAX_HEIGHT[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MAX_PBUFFER_PIXELS:
       *value = EGL_CONFIG_MAX_WIDTH * EGL_CONFIG_MAX_HEIGHT;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MAX_PBUFFER_PIXELS[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MAX_SWAP_INTERVAL:
       *value = EGL_CONFIG_MAX_SWAP_INTERVAL;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MAX_SWAP_INTERVAL[0x%x] value=EGL_CONFIG_MAX_SWAP_INTERVAL[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_MIN_SWAP_INTERVAL:
       *value = EGL_CONFIG_MIN_SWAP_INTERVAL;
+      //ALOGI("%s ConfigID=%d attrib=EGL_MIN_SWAP_INTERVAL[0x%x] value=EGL_CONFIG_MIN_SWAP_INTERVAL[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_NATIVE_RENDERABLE:
       *value = EGL_TRUE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_NATIVE_RENDERABLE[0x%x] value=EGL_TRUE[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_NATIVE_VISUAL_ID:
       *value = platform_get_color_format(egl_config_get_color_format(id));
+      //ALOGI("%s ConfigID=%d attrib=EGL_NATIVE_VISUAL_ID[0x%x] value=EGL_TRUE[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_NATIVE_VISUAL_TYPE:
       *value = EGL_NONE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_NATIVE_VISUAL_TYPE[0x%x] value=EGL_NONE[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_RENDERABLE_TYPE:
       *value = egl_config_get_api_support(id);
+      //ALOGI("%s ConfigID=%d attrib=EGL_RENDERABLE_TYPE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_SAMPLE_BUFFERS:
       *value = FEATURES_UNPACK_MULTI(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_SAMPLE_BUFFERS[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_SAMPLES:
       *value = FEATURES_UNPACK_MULTI(features) * 4;
+      //ALOGI("%s ConfigID=%d attrib=EGL_SAMPLES[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_STENCIL_SIZE:
       *value = FEATURES_UNPACK_STENCIL(features);
+      //ALOGI("%s ConfigID=%d attrib=EGL_STENCIL_SIZE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_SURFACE_TYPE:
       *value = (EGLint)(EGL_PBUFFER_BIT | EGL_PIXMAP_BIT | EGL_WINDOW_BIT | EGL_VG_COLORSPACE_LINEAR_BIT | EGL_VG_ALPHA_FORMAT_PRE_BIT | EGL_MULTISAMPLE_RESOLVE_BOX_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT);
+      
 #if EGL_KHR_lock_surface
       if (egl_config_is_lockable(id))
       {
@@ -588,14 +617,23 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
             *value |= EGL_OPTIMAL_FORMAT_BIT_KHR;      /* Considered optimal if no format conversion needs doing. Currently all lockable surfaces are optimal */
       }
 #endif
+		//ALOGI("%s ConfigID=%d attrib=EGL_SURFACE_TYPE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_TRANSPARENT_TYPE:
       *value = EGL_NONE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_TRANSPARENT_TYPE[0x%x] value=EGL_NONE[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_TRANSPARENT_RED_VALUE:
+		*value = 0;
+       //ALOGI("%s ConfigID=%d attrib=EGL_TRANSPARENT_RED_VALUE[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
+      return true;
    case EGL_TRANSPARENT_GREEN_VALUE:
+		*value = 0;
+       //ALOGI("%s ConfigID=%d attrib=EGL_TRANSPARENT_GREEN_VALUE[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
+      return true;
    case EGL_TRANSPARENT_BLUE_VALUE:
-      *value = 0;
+ 		*value = 0;
+       //ALOGI("%s ConfigID=%d attrib=EGL_TRANSPARENT_BLUE_VALUE[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
 #if EGL_KHR_lock_surface
    case EGL_MATCH_FORMAT_KHR:
@@ -614,20 +652,23 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
             UNREACHABLE();
          }
       }
+      //ALOGI("%s ConfigID=%d attrib=EGL_MATCH_FORMAT_KHR[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
 #endif
 #if EGL_ANDROID_recordable
    case EGL_RECORDABLE_ANDROID:
       *value = EGL_TRUE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_RECORDABLE_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
 #endif
 #if EGL_ANDROID_framebuffer_target
 	case EGL_FRAMEBUFFER_TARGET_ANDROID:
       *value = EGL_TRUE;
+      //ALOGI("%s ConfigID=%d attrib=EGL_FRAMEBUFFER_TARGET_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
 #endif
    default:
-	  ALOGI("%s LEAVE RETURN FALSE id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
+	  //ALOGI("%s LEAVE RETURN FALSE id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
       return false;
    }
 }
@@ -678,15 +719,13 @@ bool egl_config_filter(int id, const EGLint *attrib_list)
       EGLint name = *attrib_list++;
       EGLint value = *attrib_list++;
       EGLint actual_value;
-       ALOGI("%s id=%d name=0x%x value=0x%x",__FUNCTION__,id,name,value);
 
       if (!egl_config_get_attrib(id, name, &actual_value) )
       {
-		 ALOGI("%s UNREACHABLE id=%d name=0x%x value=0x%x actual_value=0x%x",__FUNCTION__,id,name,value,actual_value);
+		 //ALOGI("%s UNREACHABLE id=%d name=0x%x value=0x%x actual_value=0x%x",__FUNCTION__,id,name,value,actual_value);
          UNREACHABLE();
          return false;
       }
-	  ALOGI("%s id=%d name=0x%x value=0x%x actual_value=0x%x",__FUNCTION__,id,name,value,actual_value);	
       switch (name) {
          /* Selection Criteria: AtLeast */
       case EGL_BUFFER_SIZE:

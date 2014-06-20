@@ -37,10 +37,8 @@
 #include <linux/fb.h>
 #endif
 
-#include <gralloc/gralloc_priv.h>
+#include "gralloc_priv.h"
 #include "gr.h"
-
-#include <gralloc/dispmanx.h>
 
 /*****************************************************************************/
 
@@ -62,6 +60,7 @@ struct fb_context_t {
 static int fb_setSwapInterval(struct framebuffer_device_t* dev,
             int interval)
 {
+    ALOGI("%s",__FUNCTION__);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
         return -EINVAL;
@@ -72,6 +71,7 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
 static int fb_setUpdateRect(struct framebuffer_device_t* dev,
         int l, int t, int w, int h)
 {
+    ALOGI("%s",__FUNCTION__);
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
         
@@ -86,6 +86,7 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
+    ALOGI("%s",__FUNCTION__);
     if (private_handle_t::validate(buffer) < 0)
         return -EINVAL;
 
@@ -136,6 +137,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
 int mapFrameBufferLocked(struct private_module_t* module)
 {
+    ALOGI("%s",__FUNCTION__);
     // already initialized...
     if (module->framebuffer) {
         return 0;
@@ -276,7 +278,6 @@ int mapFrameBufferLocked(struct private_module_t* module)
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
     module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
-    dispmanx_alloc(module->framebuffer);
 
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
@@ -288,12 +289,12 @@ int mapFrameBufferLocked(struct private_module_t* module)
     }
     module->framebuffer->base = intptr_t(vaddr);
     memset(vaddr, 0, fbSize);
-
     return 0;
 }
 
 static int mapFrameBuffer(struct private_module_t* module)
 {
+    ALOGI("%s",__FUNCTION__);
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
     pthread_mutex_unlock(&module->lock);
@@ -304,6 +305,7 @@ static int mapFrameBuffer(struct private_module_t* module)
 
 static int fb_close(struct hw_device_t *dev)
 {
+    ALOGI("%s",__FUNCTION__);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (ctx) {
         free(ctx);
@@ -314,13 +316,9 @@ static int fb_close(struct hw_device_t *dev)
 int fb_device_open(hw_module_t const* module, const char* name,
         hw_device_t** device)
 {
+    ALOGI("%s",__FUNCTION__);
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
-        alloc_device_t* gralloc_device;
-        status = gralloc_open(module, &gralloc_device);
-        if (status < 0)
-            return status;
-
         /* initialize our state here */
         fb_context_t *dev = (fb_context_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
@@ -339,7 +337,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         if (status >= 0) {
             int stride = m->finfo.line_length / (m->info.bits_per_pixel >> 3);
             int format = (m->info.bits_per_pixel == 32)
-                         ? HAL_PIXEL_FORMAT_RGBX_8888
+                         ? (m->info.red.offset ? HAL_PIXEL_FORMAT_BGRA_8888 : HAL_PIXEL_FORMAT_RGBX_8888)
                          : HAL_PIXEL_FORMAT_RGB_565;
             const_cast<uint32_t&>(dev->device.flags) = 0;
             const_cast<uint32_t&>(dev->device.width) = m->info.xres;

@@ -18,11 +18,7 @@
 #define GR_H_
 
 #include <stdint.h>
-#ifdef HAVE_ANDROID_OS      // just want PAGE_SIZE define
-# include <asm/page.h>
-#else
-# include <sys/user.h>
-#endif
+
 #include <limits.h>
 #include <sys/cdefs.h>
 #include <hardware/gralloc.h>
@@ -30,7 +26,6 @@
 #include <errno.h>
 
 #include <cutils/native_handle.h>
-#include <gralloc/gralloc_bcm2708.h>
 
 /*****************************************************************************/
 
@@ -47,6 +42,19 @@ int mapBuffer(gralloc_module_t const* module, private_handle_t* hnd);
 
 /*****************************************************************************/
 
-
+class Locker {
+    pthread_mutex_t mutex;
+public:
+    class Autolock {
+        Locker& locker;
+    public:
+        inline Autolock(Locker& locker) : locker(locker) {  locker.lock(); }
+        inline ~Autolock() { locker.unlock(); }
+    };
+    inline Locker()        { pthread_mutex_init(&mutex, 0); }
+    inline ~Locker()       { pthread_mutex_destroy(&mutex); }
+    inline void lock()     { pthread_mutex_lock(&mutex); }
+    inline void unlock()   { pthread_mutex_unlock(&mutex); }
+};
 
 #endif /* GR_H_ */

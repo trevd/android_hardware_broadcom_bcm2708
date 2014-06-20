@@ -15,28 +15,21 @@
 
 LOCAL_PATH := $(call my-dir)
 
-
-ifeq ($(strip $(TARGET_DEBUG_GRALLOC)),true)
-LOCAL_CFLAGS += -DDEBUG_DISPMANX=1
-endif
-
+# HAL module implemenation stored in
+# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
-
-
 include $(ANDROID_BUILD_TOP)/hardware/broadcom/$(TARGET_BOARD_PLATFORM)/cflags.mk
 
 LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
-
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libvchostif libgralloc.bcm2708
+LOCAL_SHARED_LIBRARIES := liblog libcutils libgralloc.bcm2708 libvcos libvchostif
 
 LOCAL_SRC_FILES := 	\
-	gralloc.cpp	 	\
+	gralloc.cpp 	\
 	framebuffer.cpp \
-	mapper.cpp \
-	dispmanx.cpp
-	
-LOCAL_MODULE := gralloc.bcm2708
+	mapper.cpp
 
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE := gralloc.bcm2708
+LOCAL_CFLAGS:= -Wno-missing-field-initializers
+
 include $(BUILD_SHARED_LIBRARY)

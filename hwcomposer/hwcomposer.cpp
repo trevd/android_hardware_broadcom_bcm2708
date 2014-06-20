@@ -30,14 +30,15 @@
 #include <gralloc/bcm_host.h>
 
 #define HWC_DBG 1
-
+#define VSYNC_DEBUG 0
+#define BLANK_DEBUG 1
 #ifndef ALIGN_UP
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
 /*****************************************************************************/
 
 struct hwc_context_t {
-    hwc_composer_device_t device;
+    hwc_composer_device_1_t device;
     DISPMANX_DISPLAY_HANDLE_T disp;
     DISPMANX_MODEINFO_T info;
     DISPMANX_RESOURCE_HANDLE_T resources[2];
@@ -45,7 +46,7 @@ struct hwc_context_t {
 };
 
 struct hwc_layer_rd {
-	hwc_layer_t *layer;
+	hwc_layer_1_t *layer;
 	uint32_t format;
 };
 
@@ -66,8 +67,8 @@ static hwc_layer_rd * lr;
 
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
-        struct hw_device_t** device);
-
+                           struct hw_device_t** device);
+                           
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
 };
@@ -86,7 +87,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
     }
 };
 /*****************************************************************************/
-static void hwc_get_rd_layer(hwc_layer_t *src, struct hwc_layer_rd *dst){
+static void hwc_get_rd_layer(hwc_layer_1_t *src, struct hwc_layer_rd *dst){
 	dst->layer = src;
 	dst->format = HAL_PIXEL_FORMAT_RGB_565; //XXX: FIX THIS HACK
 }
@@ -138,13 +139,56 @@ static VC_IMAGE_TYPE_T hwc_format_to_vc_format(struct hwc_layer_rd *layer){
 	return ret;
 }
 
+void hwc_dump(struct hwc_composer_device_1* dev, char *buff, int buff_len)
+{
+ 
+}
+int hwc_getDisplayConfigs(struct hwc_composer_device_1* dev, int disp,
+        uint32_t* configs, size_t* numConfigs) {
+   
+    return 0;
+}
+static int hwc_eventControl(struct hwc_composer_device_1* dev, int dpy,
+                             int event, int enable)
+{
+	return 0;
+}
+static void hwc_registerProcs(struct hwc_composer_device_1* dev,
+                              hwc_procs_t const* procs)
+{
+}
+static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
+{
+
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+
+   
+    int ret = 0;
+    ALOGD_IF(BLANK_DEBUG, "%s: %s display: %d", __FUNCTION__,
+          blank==1 ? "Blanking":"Unblanking", dpy);
+   
+    switch(dpy) {
+        case HWC_DISPLAY_PRIMARY:
+        case HWC_DISPLAY_EXTERNAL:
+        case HWC_DISPLAY_VIRTUAL:
+            break;
+        default:
+            return -EINVAL;
+    }
+    
+
+    ALOGD_IF(BLANK_DEBUG, "%s: Done %s display: %d", __FUNCTION__,
+          blank==1 ? "blanking":"unblanking", dpy);
+    return 0;
+}
+
 static void* hwc_get_frame_data(const int32_t pitch, const int32_t height) {
     void* dst = malloc(pitch * height);
     memset(dst, 0, sizeof(dst));
     return dst;
 }
 
-static void hwc_set_frame_data(void *frame, hwc_layer_t *layer) {
+static void hwc_set_frame_data(void *frame, hwc_layer_1_t *layer) {
     int dstpitch = ALIGN_UP(layer->displayFrame.right - layer->displayFrame.left*2, 32);
     int srcpitch = ALIGN_UP(layer->sourceCrop.right - layer->sourceCrop.left*2, 32);
     int y;
@@ -157,7 +201,7 @@ static void hwc_set_frame_data(void *frame, hwc_layer_t *layer) {
 	
 }
 
-static void hwc_actually_do_stuff_with_layer(hwc_composer_device_t *dev, hwc_layer_t *layer){
+static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t *layer){
     RECT_VARS_T    *vars;
 	vars = &gRectVars;
 	VC_RECT_T       dst_rect, src_rect;
@@ -228,7 +272,7 @@ static void hwc_actually_do_stuff_with_layer(hwc_composer_device_t *dev, hwc_lay
 	free(frame);
 }
 
-static void hwc_do_stuff_with_layer(hwc_composer_device_t *dev, hwc_layer_t *layer){
+static void hwc_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t *layer){
 	
 	if(layer->compositionType == HWC_OVERLAY){
 		hwc_actually_do_stuff_with_layer(dev, layer);
@@ -236,51 +280,65 @@ static void hwc_do_stuff_with_layer(hwc_composer_device_t *dev, hwc_layer_t *lay
 
 }
 
-static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
-    if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
-        for (size_t i=0 ; i<list->numHwLayers ; i++) {
-            //dump_layer(&list->hwLayers[i]);
-			hwc_get_rd_layer(&list->hwLayers[i], lr);
-			if(hwc_can_render_layer(lr)){
-				if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
-				list->hwLayers[i].compositionType = HWC_OVERLAY;
-			}else{
-				if(HWC_DBG)	ALOGD("Layer %d = NOT OVERLAY!", i);
-				list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
+                       hwc_display_contents_1_t** displays)
+{
+    for (int32_t i = numDisplays - 1; i >= 0; i--) {
+        hwc_display_contents_1_t *list = displays[i];
+		if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
+			for (size_t i=0 ; i<list->numHwLayers ; i++) {
+				//dump_layer(&list->hwLayers[i]);
+				hwc_get_rd_layer(&list->hwLayers[i], lr);
+				if(hwc_can_render_layer(lr)){
+					if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
+					list->hwLayers[i].compositionType = HWC_OVERLAY;
+				}else{
+					if(HWC_DBG)	ALOGD("Layer %d = NOT OVERLAY!", i);
+					list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+				}
 			}
-        }
+		}
     }
     return 0;
 }
+int hwc_getDisplayAttributes(struct hwc_composer_device_1* dev, int disp,
+        uint32_t config, const uint32_t* attributes, int32_t* values) {
 
-static int hwc_set(hwc_composer_device_t *dev,
-        hwc_display_t dpy,
-        hwc_surface_t sur,
-        hwc_layer_list_t* list)
+    return 0;
+}
+
+static int hwc_set(hwc_composer_device_1 *dev,
+                   size_t numDisplays,
+                   hwc_display_contents_1_t** displays)
 {
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
-	
-	if(list == NULL){	//NULL list means hwc won't run or we're powering down screen
-		if(dpy && sur){	//if we have dpy and sur, hwcomposer has been disabled. swap buffers and leave.
-			if(HWC_DBG)	ALOGD("list == NULL");
-			return eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur) ? 0 : HWC_EGL_ERROR;
+	  int ret = 0;
+	const int dpy = HWC_DISPLAY_PRIMARY;
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    for (uint32_t i = 0; i < numDisplays; i++) {
+        hwc_display_contents_1_t* list = displays[i];
+		if(list == NULL){	//NULL list means hwc won't run or we're powering down screen
+			if(dpy && list->sur){	//if we have dpy and sur, hwcomposer has been disabled. swap buffers and leave.
+				if(HWC_DBG)	ALOGD("list == NULL");
+				return eglSwapBuffers((EGLDisplay)list->dpy, (EGLSurface)list->sur) ? 0 : HWC_EGL_ERROR;
+			}
+		}
+		
+
+		EGLBoolean success = eglSwapBuffers((EGLDisplay)list->dpy, (EGLSurface)list->sur);
+		if (!success) {
+			if(HWC_DBG)	ALOGD("eglSwapBuffers errored.");
+			return HWC_EGL_ERROR;
+		}
+		
+		
+		
+		for (size_t i=0 ; i<list->numHwLayers ; i++) {
+			hwc_do_stuff_with_layer(dev, &list->hwLayers[i]);
 		}
 	}
-	
-
-    EGLBoolean success = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
-    if (!success) {
-		if(HWC_DBG)	ALOGD("eglSwapBuffers errored.");
-        return HWC_EGL_ERROR;
-    }
-	
-	
-	
-	for (size_t i=0 ; i<list->numHwLayers ; i++) {
-        hwc_do_stuff_with_layer(dev, &list->hwLayers[i]);
-    }
 	
 		
     return 0;
@@ -299,7 +357,7 @@ static int hwc_device_close(struct hw_device_t *dev)
     free(lr);
     return 0;
 }
-static int hwc_query(struct hwc_composer_device* dev,
+static int hwc_query(struct hwc_composer_device_1* dev,
                      int param, int* value)
 {
     hwc_context_t* ctx = (hwc_context_t*)(dev);
@@ -331,26 +389,35 @@ static VC_IMAGE_TYPE_T convertDisplayFormatToImageType(const DISPLAY_INPUT_FORMA
 }
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
-        struct hw_device_t** device)
+                           struct hw_device_t** device)
 {
     int status = -EINVAL;
+
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
         struct hwc_context_t *dev;
         dev = (hwc_context_t*)malloc(sizeof(*dev));
-
-        /* initialize our state here */
         memset(dev, 0, sizeof(*dev));
 
-        /* initialize the procs */
-        dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version =  HWC_DEVICE_API_VERSION_1_0;
-        dev->device.common.module = const_cast<hw_module_t*>(module);
-        dev->device.common.close = hwc_device_close;
-		dev->device.query          = hwc_query;
-        dev->device.prepare = hwc_prepare;
-        dev->device.set = hwc_set;
+        //Initialize hwc context
+        //initContext(dev);
 
+        /* initialize the procs */
+         dev->device.common.tag          = HARDWARE_DEVICE_TAG;
+        dev->device.common.version      = HWC_DEVICE_API_VERSION_1_3;
+        dev->device.common.module       = const_cast<hw_module_t*>(module);
+        dev->device.common.close        = hwc_device_close;
+        dev->device.prepare             = hwc_prepare;
+        dev->device.set                 = hwc_set;
+        dev->device.eventControl        = hwc_eventControl;
+        dev->device.blank               = hwc_blank;
+        dev->device.query               = hwc_query;
+        dev->device.registerProcs       = hwc_registerProcs;
+        dev->device.dump                = hwc_dump;
+        dev->device.getDisplayConfigs   = hwc_getDisplayConfigs;
+        dev->device.getDisplayAttributes = hwc_getDisplayAttributes;
         *device = &dev->device.common;
+
+     
         status = 0;
 		
 		bcm_host_init();
@@ -370,3 +437,4 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     }
     return status;
 }
+
