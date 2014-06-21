@@ -1106,7 +1106,7 @@ static void set_ifv(
    CASE(VG_PIXEL_LAYOUT, is_pixel_layout((VGPixelLayout)value_i), state->pixel_layout = (VGPixelLayout)value_i)
    CASE_I_SERVER(VG_FILTER_FORMAT_LINEAR, true, state->filter_format_linear, clean_boolean)
    CASE_I_SERVER(VG_FILTER_FORMAT_PREMULTIPLIED, true, state->filter_format_pre, clean_boolean)
-   CASE_I_SERVER(VG_FILTER_CHANNEL_MASK, true, state->filter_channel_mask, )
+   CASE_I_SERVER(VG_FILTER_CHANNEL_MASK, true, state->filter_channel_mask,clean_boolean )
    #undef CASE_F_SERVER
    #undef CASE_I_SERVER
    #undef CASE
@@ -1143,7 +1143,7 @@ static void set_ifv(
       if (params_to_ints(
          state->scissor_rects,
          are_floats, values, count) ||
-         (state->scissor_rects_count != count)) {
+         (state->scissor_rects_count != (VGuint)count)) {
          state->scissor_rects_count = count;
          set_iv_server(VG_SCISSOR_RECTS, count, state->scissor_rects);
       }
@@ -1165,7 +1165,7 @@ static void set_ifv(
       if (params_to_floats(
          state->stroke_dash_pattern,
          are_floats, values, count) ||
-         (state->stroke_dash_pattern_count != count)) {
+         (state->stroke_dash_pattern_count != (VGuint)count)) {
          state->stroke_dash_pattern_count = count;
          set_fv_server(VG_STROKE_DASH_PATTERN, count, state->stroke_dash_pattern);
       }
@@ -1452,7 +1452,7 @@ static void set_parameter_ifv(
          if (params_to_floats(
             paint->gradient->ramp_stops,
             are_floats, values, count) ||
-            (paint->gradient->ramp_stops_count != count)) {
+            (paint->gradient->ramp_stops_count != (VGuint)count)) {
             paint->gradient->ramp_stops_count = count;
             set_parameter_fv_server(vg_handle, VG_CLIENT_OBJECT_TYPE_PAINT, VG_PAINT_COLOR_RAMP_STOPS, count, paint->gradient->ramp_stops);
          }

@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <gralloc/bcm_host.h>
 
 extern VCOS_LOG_CAT_T khrn_client_log;
 
@@ -60,7 +61,7 @@ VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int n
 uint64_t khronos_platform_get_process_id()
 {
    uint64_t result =vcos_process_id_current();
-   ALOGI("%s %lld",__FUNCTION__,result);
+   //ALOGI("%s %lld",__FUNCTION__,result);
    
    return result;
 }
@@ -444,36 +445,44 @@ static EGL_DISPMANX_WINDOW_T default_dwin;
 
 static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
 {
+   	//ALOGI("%s win=%d",__FUNCTION__,win);
    if (win == 0) {
+	   //	ALOGI("%s win=%d",__FUNCTION__,win);
       /*
        * Special identifier indicating the default window. Either use the
        * one we've got or create a new one, which would fill a WVGA screen
        * on display 0
        */
-
+	
       if (!have_default_dwin) {
+		  
          DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open( 0 );
          DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( 0 );
          VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
          VC_RECT_T dst_rect;
          VC_RECT_T src_rect;
+        uint32_t display_width;
+		uint32_t display_height;
+         graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+  
 
-         src_rect.x = 0;
-         src_rect.y = 0;
-         src_rect.width = 800 << 16;
-         src_rect.height = 480 << 16;
-
-         dst_rect.x = 0;
-         dst_rect.y = 0;
-         dst_rect.width = 1920;
-         dst_rect.height = 1080;
+     
+   dst_rect.x = 0;
+   dst_rect.y = 0;
+   dst_rect.width = display_width;
+   dst_rect.height = display_height;
+      
+   src_rect.x = 0;
+   src_rect.y = 0;
+   src_rect.width = display_width << 16;
+   src_rect.height = display_height << 16;  
 
          default_dwin.element = vc_dispmanx_element_add ( update, display,
             0/*layer*/, &dst_rect, 0/*src*/,
             &src_rect, DISPMANX_PROTECTION_NONE, &alpha, 0/*clamp*/, 0/*transform*/);
 
-         default_dwin.width = 1920;
-         default_dwin.height = 1080;
+         default_dwin.width= display_width;
+         default_dwin.height =display_height;
 
          vc_dispmanx_update_submit_sync( update );
 
@@ -486,6 +495,7 @@ static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
 
 uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType win)
 {
+		//ALOGI("%s",__FUNCTION__);
    EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
    return dwin->element;  /* same handles used on host and videocore sides */
 }
@@ -494,8 +504,9 @@ uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType win)
 void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
 {
+		
    EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
-
+	//ALOGI("%s  dwin->width=%d  dwin->height=%d",__FUNCTION__, dwin->width, dwin->height);
    *width =  dwin->width;
    *height = dwin->height;
 }

@@ -274,7 +274,7 @@ bool egl_config_match_pixmap_info(int id, KHRN_IMAGE_WRAP_T *image)
    vcos_assert(id >= 0 && id < EGL_MAX_CONFIGS);
 
    return
-      khrn_image_get_red_size(format)   == FEATURES_UNPACK_RED(features) &&
+      (int32_t)khrn_image_get_red_size(format)   == FEATURES_UNPACK_RED(features) &&
       khrn_image_get_green_size(format) == FEATURES_UNPACK_GREEN(features) &&
       khrn_image_get_blue_size(format)  == FEATURES_UNPACK_BLUE(features) &&
       khrn_image_get_alpha_size(format) == FEATURES_UNPACK_ALPHA(features);

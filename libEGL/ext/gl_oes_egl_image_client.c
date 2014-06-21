@@ -25,7 +25,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef GL_GLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES /* we want the prototypes so the compiler will check that the signatures match */
+#endif
 #define VCOS_LOG_CATEGORY (&gl_oes_egl_image_client_log)
 
 #include <khronos/common/khrn_client_mangle.h>

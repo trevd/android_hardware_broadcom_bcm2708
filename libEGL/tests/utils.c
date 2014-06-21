@@ -15,9 +15,11 @@
 //    OpenGL ES 2.0 Programming Guide.
 //
 
-///
+
 //  Includes
 //
+#define LOG_TAG "EGLTEST-UTILS"
+#include <utils/Log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,15 +47,14 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
    EGLContext context;
    EGLSurface surface;
    EGLConfig config;
-   
+   ALOGI("%s",__FUNCTION__);
    EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
-
-   
-   
+  
    
    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
    if ( display == EGL_NO_DISPLAY )
    {
+	  ALOGE("%s eglGetDisplay==EGL_NO_DISPLAY",__FUNCTION__);
       return EGL_FALSE;
    }
  
@@ -61,25 +62,29 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
    // Initialize EGL
    if ( !eglInitialize(display, &majorVersion, &minorVersion) )
    {
+	  ALOGE("%s eglInitialize Failed",__FUNCTION__);
       return EGL_FALSE;
    }
 
-   // Get configs
-   if ( !eglGetConfigs(display, NULL, 0, &numConfigs) )
-   {
-      return EGL_FALSE;
-   }
+	// Get configs
+	if ( !eglGetConfigs(display, NULL, 0, &numConfigs) )
+	{
+		ALOGE("%s eglGetConfigs Failed",__FUNCTION__);
+		return EGL_FALSE;
+	}
 
    // Choose config
    if ( !eglChooseConfig(display, attribList, &config, 1, &numConfigs) )
    {
+	   ALOGE("%s eglChooseConfig Failed",__FUNCTION__);
       return EGL_FALSE;
    }
-
+ ALOGI("%s eglChooseConfig config=%d",__FUNCTION__,config);
    // Create a surface
    surface = eglCreateWindowSurface(display, config, (EGLNativeWindowType)hWnd, NULL);
    if ( surface == EGL_NO_SURFACE )
    {
+	   ALOGE("%s eglCreateWindowSurface==EGL_NO_SURFACE",__FUNCTION__);
       return EGL_FALSE;
    }
 
@@ -87,12 +92,14 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
    context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs );
    if ( context == EGL_NO_CONTEXT )
    {
+	    ALOGE("%s eglCreateContext==EGL_NO_CONTEXT",__FUNCTION__);
       return EGL_FALSE;
    }   
    
    // Make the context current
    if ( !eglMakeCurrent(display, surface, surface, context) )
    {
+	   ALOGE("%s eglMakeCurrent Failed",__FUNCTION__);
       return EGL_FALSE;
    }
    

@@ -40,7 +40,7 @@
 #include <gralloc/bcm_host.h>
 #include <gralloc/gr.h>
 
-
+#include <gralloc/dispmanx.h>
 
 /*****************************************************************************/
 
@@ -65,6 +65,11 @@ extern int gralloc_lock(gralloc_module_t const* module,
         int l, int t, int w, int h,
         void** vaddr);
 
+extern int gralloc_lock_ycbcr(gralloc_module_t const* module,
+                        buffer_handle_t handle, int usage,
+                        int l, int t, int w, int h,
+                        struct android_ycbcr *ycbcr);
+
 extern int gralloc_unlock(gralloc_module_t const* module, 
         buffer_handle_t handle);
 
@@ -74,84 +79,45 @@ extern int gralloc_register_buffer(gralloc_module_t const* module,
 extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
 
+extern int gralloc_perform(struct gralloc_module_t const* module,
+                           int operation, ... );
+
 /*****************************************************************************/
 
 static struct hw_module_methods_t gralloc_module_methods = {
         .open = gralloc_device_open
 };
 
+// HAL module initialize
 struct private_module_t HAL_MODULE_INFO_SYM = {
-    .base = {
-        .common = {
-            .tag = HARDWARE_MODULE_TAG,
-            .version_major = 1,
-            .version_minor = 0,
-            .id = GRALLOC_HARDWARE_MODULE_ID,
-            .name = "Graphics Memory Allocator Module",
-            .author = "The Android Open Source Project",
-            .methods = &gralloc_module_methods
+    base: {
+        common: {
+            tag: HARDWARE_MODULE_TAG,
+            module_api_version: GRALLOC_MODULE_API_VERSION_0_2,
+            hal_api_version: 0,
+            id: GRALLOC_HARDWARE_MODULE_ID,
+            name: "Graphics Memory Allocator Module",
+            author: "The Android Open Source Project",
+            methods: &gralloc_module_methods,
+            dso: 0,
         },
-        .registerBuffer = gralloc_register_buffer,
-        .unregisterBuffer = gralloc_unregister_buffer,
-        .lock = gralloc_lock,
-        .unlock = gralloc_unlock,
+        registerBuffer: gralloc_register_buffer,
+        unregisterBuffer: gralloc_unregister_buffer,
+        lock: gralloc_lock,
+        unlock: gralloc_unlock,
+        perform: gralloc_perform,
+        lock_ycbcr: gralloc_lock_ycbcr,
     },
-    .framebuffer = 0,
-    .flags = 0,
-    .numBuffers = 0,
-    .bufferMask = 0,
-    .lock = PTHREAD_MUTEX_INITIALIZER,
-    .currentBuffer = 0,
+    framebuffer: 0,
+    fbFormat: 0,
+    flags: 0,
+    numBuffers: 0,
+    bufferMask: 0,
+    lock: PTHREAD_MUTEX_INITIALIZER,
+    currentBuffer: 0,
 };
 
-void* dispmanx_alloc(private_handle_t* handle)
-{
-   uint32_t success = 0;
-	ALOGI("%s",__FUNCTION__);
- 
-   VC_RECT_T dst_rect;
-   VC_RECT_T src_rect;
-   
-
-   uint32_t display_width;
-   uint32_t display_height;
-
-   // create an EGL window surface, passing context width/height
-   success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
-   if ( success < 0 )
-   {
-	   ALOGI("%s graphics_get_display_size failed",__FUNCTION__);
-      return NULL;
-   }
-    ALOGI("%s display_width=%u display_height=%u",__FUNCTION__,display_width,display_height);
-   // You can hardcode the resolution here:
-   //display_width = 640;
-   //display_height = 480;
-
-   dst_rect.x = 0;
-   dst_rect.y = 0;
-   dst_rect.width = display_width;
-   dst_rect.height = display_height;
-      
-   src_rect.x = 0;
-   src_rect.y = 0;
-   src_rect.width = display_width << 16;
-   src_rect.height = display_height << 16;   
-   handle->brcm_handle = (struct gralloc_private_handle_t*) malloc(sizeof(struct gralloc_private_handle_t));
-   handle->brcm_handle->dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
-   handle->brcm_handle->dispman_update = vc_dispmanx_update_start( 0 );
-         
-   handle->brcm_handle->dispman_element = vc_dispmanx_element_add ( handle->brcm_handle->dispman_update, handle->brcm_handle->dispman_display,
-      0/*layer*/, &dst_rect, 0/*src*/,
-      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
-      
-   handle->brcm_handle->window.element = handle->brcm_handle->dispman_element;
-   handle->brcm_handle->window.width = display_width;
-   handle->brcm_handle->window.height = display_height;
-   vc_dispmanx_update_submit_sync( handle->brcm_handle->dispman_update );
-   return NULL;
-}
-/*****************************************************************************/
+/************************************************************************/
 
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
@@ -203,7 +169,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
-	dispmanx_alloc(hnd);
+    dispmanx_alloc(hnd);
     return 0;
 }
 

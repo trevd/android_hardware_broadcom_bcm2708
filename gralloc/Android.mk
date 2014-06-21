@@ -22,14 +22,14 @@ include $(ANDROID_BUILD_TOP)/hardware/broadcom/$(TARGET_BOARD_PLATFORM)/cflags.m
 
 LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libgralloc.bcm2708 libvcos libvchostif
+LOCAL_SHARED_LIBRARIES := liblog libcutils libgralloc.bcm2708 libvcos libvchostif libEGL_bcm2708 libhardware
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
+	dispmanx.cpp \
 	mapper.cpp
 
 LOCAL_MODULE := gralloc.bcm2708
-LOCAL_CFLAGS:= -Wno-missing-field-initializers
 
 include $(BUILD_SHARED_LIBRARY)

@@ -199,12 +199,14 @@ bool egl_surface_check_attribs(
             return false;
          if (width != NULL)
             *width = value;
+         ALOGI("%s EGL_WIDTH[%d]=0x%x",__FUNCTION__,name,value);
          break;
       case EGL_HEIGHT:
          if (type != PBUFFER || value < 0)
             return false;
          if (height != NULL)
             *height = value;
+         ALOGI("%s EGL_WIDTH[%d]=0x%x",__FUNCTION__,name,value);
          break;
       case EGL_LARGEST_PBUFFER:
          if (type != PBUFFER || (value != EGL_FALSE && value != EGL_TRUE))
@@ -336,6 +338,7 @@ EGL_SURFACE_T *egl_surface_create(
    vcos_assert((width <= EGL_CONFIG_MAX_WIDTH && height <= EGL_CONFIG_MAX_HEIGHT) || largest_pbuffer);
 
    if (!surface) {
+	   ALOGI("%s surface=NULL",__FUNCTION__,surface);
       return 0;
    }
 
@@ -373,10 +376,10 @@ EGL_SURFACE_T *egl_surface_create(
    surface->context_binding_count = 0;
    surface->is_destroyed = false;
 
-#if EGL_KHR_lock_surface
+
    surface->is_locked = false;
    surface->mapped_buffer = 0;
-#endif
+
 
    configid = egl_config_to_id(config);
    color = egl_config_get_color_format(configid);
@@ -392,18 +395,6 @@ EGL_SURFACE_T *egl_surface_create(
    egl_config_get_attrib(configid, EGL_STENCIL_SIZE, &config_stencil_bits);
 
    vcos_assert(color != IMAGE_FORMAT_INVALID);
-
-#ifdef KHRONOS_EGL_PLATFORM_OPENWFC
-   // Create stream for this window
-   if(type != PBUFFER)
-   {
-      WFCNativeStreamType stream = (WFCNativeStreamType) surface->internal_handle;
-      vcos_assert(stream != WFC_INVALID_HANDLE);
-      uint32_t failure = wfc_stream_create(stream, WFC_STREAM_FLAGS_EGL);
-      vcos_log_trace("Creating stream with handle %X", stream);
-      vcos_assert(failure == 0);
-   } // if
-#endif
 
    surface->buffers = buffers;
 
@@ -423,44 +414,10 @@ EGL_SURFACE_T *egl_surface_create(
                                                          RPC_UINT(config_stencil_bits)));
       surface->avail_buffers_valid = false;
    } else {
-#ifdef __SYMBIAN32__
-      uint32_t nbuff = 0;
-      surface->avail_buffers_valid = 0;
-
-      if (surface->buffers > 1) {
-         uint64_t pid = khronos_platform_get_process_id();
-         int sem[3] = { (int)pid, (int)(pid >> 32), (int)name };
-         if (khronos_platform_semaphore_create(&surface->avail_buffers, sem, surface->buffers) == KHR_SUCCESS)
-            surface->avail_buffers_valid = 1;
-            nbuff = (int)surface->avail_buffers;
-      }
-
-      if (surface->buffers == 1 || surface->avail_buffers_valid) {
-         uint32_t results[3];
-
-         RPC_CALL15_OUT_CTRL(eglIntCreateSurface_impl,
-                             thread,
-                             EGLINTCREATESURFACE_ID,
-                             RPC_UINT(serverwin),
-                             RPC_UINT(buffers),
-                             RPC_UINT(width),
-                             RPC_UINT(height),
-                             RPC_UINT(color),
-                             RPC_UINT(depth),
-                             RPC_UINT(mask),
-                             RPC_UINT(multi),
-                             RPC_UINT(largest_pbuffer),
-                             RPC_UINT(mipmap_texture),
-                             RPC_UINT(config_depth_bits),
-                             RPC_UINT(config_stencil_bits),
-                             RPC_UINT((int)nbuff),
-                             RPC_UINT(type),
-                             results);
-#else
       surface->avail_buffers_valid = false;
 
       sem_name = KHRN_NO_SEMAPHORE;
-#ifndef KHRONOS_EGL_PLATFORM_OPENWFC
+	ALOGI("%s surface->buffers=%d",__FUNCTION__,surface->buffers );
       if (surface->buffers > 1) {
          uint64_t pid = khronos_platform_get_process_id();
          int sem[3];
@@ -471,10 +428,7 @@ EGL_SURFACE_T *egl_surface_create(
             surface->avail_buffers_valid = true;
       }
       if (sem_name == KHRN_NO_SEMAPHORE || surface->avail_buffers_valid) {
-#else
-      sem_name = (uint32_t)surface->internal_handle;
-      vcos_log_trace("Surface create has semaphore %X", sem_name);
-#endif
+
          uint32_t results[3];
 
          RPC_CALL15_OUT_CTRL(eglIntCreateSurface_impl,
@@ -495,17 +449,17 @@ EGL_SURFACE_T *egl_surface_create(
                              RPC_UINT(sem_name),
                              RPC_UINT(type),
                              results);
-#endif
+
          surface->width = results[0];
          surface->height = results[1];
          surface->serverbuffer = results[2];
-#ifndef KHRONOS_EGL_PLATFORM_OPENWFC
+
       } else {
          surface->serverbuffer = 0;
       }
-#endif
-   }
 
+   }
+	ALOGI("%s surface->serverbuffer=%d",__FUNCTION__,surface->serverbuffer);
    if (surface->serverbuffer)
       return surface;
    else {

@@ -114,7 +114,7 @@ VCHIQ_STATUS_T khan_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
       // If incoming message is not addressed to this process, then ignore it.
       // Correct process should then pick it up.
       uint64_t pid = khronos_platform_get_process_id();
-      if((msg[0] != (uint32_t) pid) || (msg[1] != (uint32_t) (pid >> 32)))
+      if((msg[0] != (int32_t) pid) || (msg[1] != (int32_t) (pid >> 32)))
       {
          printf("khan_callback: message for wrong process; pid = %X, msg pid = %X\n",
             (uint32_t) pid, msg[0]);
@@ -410,7 +410,7 @@ void rpc_send_bulk_gather(CLIENT_THREAD_STATE_T *thread, const void *in, uint32_
 
       merge_flush(thread);
 
-      if (len == stride) {
+      if ((int32_t)len == stride) {
          /* hopefully should be the common case */
          send_bulk(thread, in, n * len);
       } else {

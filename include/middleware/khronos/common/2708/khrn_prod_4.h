@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <middleware/khronos/egl/egl_disp.h>
 #include <middleware/khronos/common/khrn_hw.h>
 #include <khronos/common/khrn_int_util.h>
+ #include <vcfw/vclib/vclib.h>
 #if defined(SIMPENROSE)
    #include "tools/v3d/simpenrose/simpenrose.h"
    #ifdef SIMPENROSE_RECORD_OUTPUT
@@ -39,9 +40,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #elif defined(ABSTRACT_PLATFORM)
    /* nothing included */
 #else
-   #include "vcfw/vclib/vclib.h"
-   #include "hardware_alias.h"
-#include "hardware_v3d.h"
+ 
+ //  #include <hardware_alias.h>
+//#include "hardware_v3d.h"
 #endif
 
 #if defined(KHRN_CARBON)

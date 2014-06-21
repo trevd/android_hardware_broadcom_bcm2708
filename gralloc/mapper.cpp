@@ -31,7 +31,7 @@
 #include <hardware/gralloc.h>
 
 #include <gralloc/gralloc_priv.h>
-
+#include <gralloc/dispmanx.h>
 
 
 /* desktop Linux needs a little help with gettid() */
@@ -42,6 +42,9 @@ pid_t gettid() { return syscall(__NR_gettid);}
 #undef __KERNEL__
 #endif
 
+inline size_t ALIGN(size_t x, size_t align) {
+    return (x + align-1) & ~(align-1);
+}
 /*****************************************************************************/
 
 static int gralloc_map(gralloc_module_t const* /*module*/,
@@ -63,6 +66,7 @@ static int gralloc_map(gralloc_module_t const* /*module*/,
         //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
     }
     *vaddr = (void*)hnd->base;
+     dispmanx_alloc(hnd);
     return 0;
 }
 
@@ -171,8 +175,8 @@ int terminateBuffer(gralloc_module_t const* module,
 }
 
 int gralloc_lock(gralloc_module_t const* /*module*/,
-        buffer_handle_t handle, int /*usage*/,
-        int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+        buffer_handle_t handle, int usage,
+        int l, int t, int w, int h,
         void** vaddr)
 {
     ALOGI("%s",__FUNCTION__);
@@ -189,7 +193,7 @@ int gralloc_lock(gralloc_module_t const* /*module*/,
 
     private_handle_t* hnd = (private_handle_t*)handle;
     *vaddr = (void*)hnd->base;
-    return 0;
+    return dispmanx_lock(hnd, usage, l, t, w, h, vaddr);
 }
 
 int gralloc_unlock(gralloc_module_t const* /*module*/,
@@ -201,5 +205,91 @@ int gralloc_unlock(gralloc_module_t const* /*module*/,
 
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
+        
+          private_handle_t* hnd = (private_handle_t*)handle;
+    dispmanx_unlock(hnd);
+      dispmanx_unlock(hnd);
     return 0;
+}
+int gralloc_perform(struct gralloc_module_t const* module,
+                    int operation, ... )
+{
+	 ALOGI("%s",__FUNCTION__);
+	    int res = -EINVAL;
+    va_list args;
+    va_start(args, operation);
+    switch (operation) {
+        case GRALLOC_MODULE_PERFORM_CREATE_HANDLE_FROM_BUFFER:
+            {
+                int fd = va_arg(args, int);
+                size_t size = va_arg(args, size_t);
+                size_t offset = va_arg(args, size_t);
+                void* base = va_arg(args, void*);
+                int width = va_arg(args, int);
+                int height = va_arg(args, int);
+                int format = va_arg(args, int);
+
+                native_handle_t** handle = va_arg(args, native_handle_t**);
+                int memoryFlags = va_arg(args, int);
+                private_handle_t* hnd = (private_handle_t*)native_handle_create(
+                    private_handle_t::sNumFds, private_handle_t::sNumInts);
+                hnd->magic = private_handle_t::sMagic;
+                hnd->fd = fd;
+                hnd->flags = private_handle_t::PRIV_FLAGS_USES_ASHMEM;
+                hnd->size = size;
+                hnd->offset = offset;
+                hnd->base = intptr_t(base) + offset;
+                hnd->gpuaddr = 0;
+                hnd->width = width;
+                hnd->height = height;
+                hnd->format = format;
+                *handle = (native_handle_t *)hnd;
+                res = 0;
+                break;
+
+            }
+		default:
+			break;
+    }
+
+    va_end(args);
+    return res;
+}
+int gralloc_lock_ycbcr(gralloc_module_t const* module,
+                 buffer_handle_t handle, int usage,
+                 int l, int t, int w, int h,
+                 struct android_ycbcr *ycbcr)
+{
+     
+   ALOGI("%s",__FUNCTION__);
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
+
+    private_handle_t* hnd = (private_handle_t*)handle;
+    void *vaddr;
+	int err = gralloc_map(module, handle, &vaddr);
+ 
+   
+    int ystride;
+    if(!err) {
+        //hnd->format holds our implementation defined format
+        //HAL_PIXEL_FORMAT_YCrCb_420_SP is the only one set right now.
+        switch (hnd->format) {
+            case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+                ystride = ALIGN(hnd->width, 16);
+                ycbcr->y  = (void*)hnd->base;
+                ycbcr->cr = (void*)(hnd->base + ystride * hnd->height);
+                ycbcr->cb = (void*)(hnd->base + ystride * hnd->height + 1);
+                ycbcr->ystride = ystride;
+                ycbcr->cstride = ystride;
+                ycbcr->chroma_step = 2;
+                memset(ycbcr->reserved, 0, sizeof(ycbcr->reserved));
+                break;
+            default:
+                ALOGD("%s: Invalid format passed: 0x%x", __FUNCTION__,
+                      hnd->format);
+                err = -EINVAL;
+        }
+    }
+    return err;
 }

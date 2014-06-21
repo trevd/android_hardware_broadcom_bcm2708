@@ -373,7 +373,7 @@ GL_API void GL_APIENTRY glBufferData (GLenum target, GLsizeiptr size, const GLvo
 
       GLXX_BUFFER_INFO_T buffer;
       glxx_buffer_info_get(state, target, &buffer);
-      if(buffer.id != ~0 && buffer.mapped_pointer != 0)
+      if(((int32_t)buffer.id != ~0) && (buffer.mapped_pointer != 0))
       {
          /* buffer is mapped */
          set_error(state, GL_INVALID_OPERATION);
@@ -438,7 +438,7 @@ GL_API void GL_APIENTRY glBufferSubData (GLenum target, GLintptr base, GLsizeipt
 
       GLXX_BUFFER_INFO_T buffer;
       glxx_buffer_info_get(state, target, &buffer);
-      if(buffer.id != ~0 && buffer.mapped_pointer != 0)
+      if(((int32_t)buffer.id != ~0) && (buffer.mapped_pointer != 0))
       {
          /* buffer is mapped */
          set_error(state, GL_INVALID_OPERATION);

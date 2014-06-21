@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#define LOG_TAG "HWC-BCM2708"
 #include <hardware/hardware.h>
 
 #include <fcntl.h>
@@ -23,22 +23,50 @@
 #include <cutils/atomic.h>
 
 #include <hardware/hwcomposer.h>
-#include <hwc.h>
+
 
 #include <EGL/egl.h>
 
 #include <gralloc/bcm_host.h>
+#include <gralloc/gralloc_priv.h>
 
 #define HWC_DBG 1
-#define VSYNC_DEBUG 0
+#define VSYNC_DEBUG 1
 #define BLANK_DEBUG 1
 #ifndef ALIGN_UP
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
 /*****************************************************************************/
+struct DisplayAttributes {
+    uint32_t vsync_period; //nanos
+    uint32_t xres;
+    uint32_t yres;
+    uint32_t stride;
+    float xdpi;
+    float ydpi;
+    int fd;
+    bool connected; //Applies only to pluggable disp.
+    //Connected does not mean it ready to use.
+    //It should be active also. (UNBLANKED)
+    bool isActive;
+    // In pause state, composition is bypassed
+    // used for WFD displays only
+    bool isPause;
+};
+struct LayerProp {
+    uint32_t mFlags; //qcom specific layer flags
+    LayerProp():mFlags(0) {};
+};
 
+struct VsyncState {
+    bool enable;
+    bool fakevsync;
+};
 struct hwc_context_t {
     hwc_composer_device_1_t device;
+     const hwc_procs_t* proc;
+     DisplayAttributes dpyAttr[HWC_NUM_DISPLAY_TYPES];
+     VsyncState vstate;
     DISPMANX_DISPLAY_HANDLE_T disp;
     DISPMANX_MODEINFO_T info;
     DISPMANX_RESOURCE_HANDLE_T resources[2];
@@ -89,10 +117,10 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 /*****************************************************************************/
 static void hwc_get_rd_layer(hwc_layer_1_t *src, struct hwc_layer_rd *dst){
 	dst->layer = src;
-	dst->format = HAL_PIXEL_FORMAT_RGB_565; //XXX: FIX THIS HACK
+	dst->format = HAL_PIXEL_FORMAT_RGBA_8888; //XXX: FIX THIS HACK
 }
 
-static void dump_layer(hwc_layer_t const* l) {
+static void dump_layer(hwc_layer_1_t const* l) {
     ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
             l->compositionType, l->flags, l->handle, l->transform, l->blending,
             l->sourceCrop.left,
@@ -105,6 +133,52 @@ static void dump_layer(hwc_layer_t const* l) {
             l->displayFrame.bottom);
 }
 
+static int init_context(hwc_context_t *ctx)
+{
+    struct fb_fix_screeninfo finfo;
+    struct fb_var_screeninfo info;
+
+    int fb_fd = open("/dev/graphics/fb0", O_RDWR);
+     if (ioctl(fb_fd, FBIOGET_VSCREENINFO, &info) == -1)
+        return -errno;
+
+    if (int(info.width) <= 0 || int(info.height) <= 0) {
+        // the driver doesn't return that information
+        // default to 160 dpi
+        info.width  = ((info.xres * 25.4f)/160.0f + 0.5f);
+        info.height = ((info.yres * 25.4f)/160.0f + 0.5f);
+    }
+
+    float xdpi = (info.xres * 25.4f) / info.width;
+    float ydpi = (info.yres * 25.4f) / info.height;
+    float fps  = info.reserved[3] & 0xFF;
+    if (ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo) == -1)
+        return -errno;
+
+    if (finfo.smem_len <= 0)
+        return -errno;
+
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].fd = fb_fd;
+    //xres, yres may not be 32 aligned
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].stride = finfo.line_length /(info.xres/8);
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].xres = info.xres;
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].yres = info.yres;
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].xdpi = xdpi;
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].ydpi = ydpi;
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].vsync_period = 1000000000l / fps;
+
+    //Unblank primary on first boot
+    if(ioctl(fb_fd, FBIOBLANK,FB_BLANK_UNBLANK) < 0) {
+        ALOGE("%s: Failed to unblank display", __FUNCTION__);
+        return -errno;
+    }
+    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].isActive = true;
+	ctx->vstate.enable = false;
+    ctx->vstate.fakevsync = true;
+    return 0;
+
+    
+}
 static bool hwc_can_render_layer(struct hwc_layer_rd *layer)
 {
     bool ret = false;
@@ -141,24 +215,75 @@ static VC_IMAGE_TYPE_T hwc_format_to_vc_format(struct hwc_layer_rd *layer){
 
 void hwc_dump(struct hwc_composer_device_1* dev, char *buff, int buff_len)
 {
- 
+	ALOGI("%s",__FUNCTION__);
 }
 int hwc_getDisplayConfigs(struct hwc_composer_device_1* dev, int disp,
         uint32_t* configs, size_t* numConfigs) {
-   
-    return 0;
+   ALOGI("%s",__FUNCTION__);
+    int ret = 0;
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    //in 1.1 there is no way to choose a config, report as config id # 0
+    //This config is passed to getDisplayAttributes. Ignore for now.
+    switch(disp) {
+        case HWC_DISPLAY_PRIMARY:
+            if(*numConfigs > 0) {
+                configs[0] = 0;
+                *numConfigs = 1;
+            }
+            ALOGI("%s HWC_DISPLAY_PRIMARY",__FUNCTION__);
+            ret = 0; //NO_ERROR
+            break;
+        case HWC_DISPLAY_EXTERNAL:
+        ALOGI("%s HWC_DISPLAY_PRIMARY",__FUNCTION__);
+        default:
+            ret = -1; //Not connected
+            break;
+        
+    }
+    return ret;
 }
 static int hwc_eventControl(struct hwc_composer_device_1* dev, int dpy,
                              int event, int enable)
 {
-	return 0;
+	ALOGI("%s event=%d",__FUNCTION__,event);
+	    int ret = 0;
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    if(!ctx->dpyAttr[dpy].isActive) {
+        ALOGE("Display is blanked - Cannot %s vsync",
+              enable ? "enable" : "disable");
+        return 0;
+    }
+
+    switch(event) {
+        case HWC_EVENT_VSYNC:
+            if (ctx->vstate.enable == enable)
+                break;
+            ret = 0 ; //hwc_vsync_control(ctx, dpy, enable);
+            if(ret == 0)
+                ctx->vstate.enable = !!enable;
+            ALOGD_IF (VSYNC_DEBUG, "VSYNC state changed to %s",
+                      (enable)?"ENABLED":"DISABLED");
+            break;
+        default:
+            ret = -EINVAL;
+    }
+    return ret;
+	
 }
 static void hwc_registerProcs(struct hwc_composer_device_1* dev,
                               hwc_procs_t const* procs)
 {
+	ALOGI("%s",__FUNCTION__);
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    if(!ctx) {
+        ALOGE("%s: Invalid context", __FUNCTION__);
+        return;
+    }
+    ctx->proc = procs;
 }
 static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
 {
+
 
     hwc_context_t* ctx = (hwc_context_t*)(dev);
 
@@ -169,6 +294,16 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
    
     switch(dpy) {
         case HWC_DISPLAY_PRIMARY:
+        if(blank) {
+                ret = ioctl(ctx->dpyAttr[dpy].fd, FBIOBLANK,
+                            FB_BLANK_POWERDOWN);
+            } else {
+                ret = ioctl(ctx->dpyAttr[dpy].fd, FBIOBLANK,FB_BLANK_UNBLANK);
+               
+            }
+             ALOGD_IF(BLANK_DEBUG, "%s: %s display: %d ctx->dpyAttr[dpy].fd=%d", __FUNCTION__,
+          blank==1 ? "Blanking":"Unblanking", dpy,ctx->dpyAttr[dpy].fd);
+            break;
         case HWC_DISPLAY_EXTERNAL:
         case HWC_DISPLAY_VIRTUAL:
             break;
@@ -183,12 +318,14 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
 }
 
 static void* hwc_get_frame_data(const int32_t pitch, const int32_t height) {
+	ALOGI("%s",__FUNCTION__);
     void* dst = malloc(pitch * height);
     memset(dst, 0, sizeof(dst));
     return dst;
 }
 
 static void hwc_set_frame_data(void *frame, hwc_layer_1_t *layer) {
+	ALOGI("%s",__FUNCTION__);
     int dstpitch = ALIGN_UP(layer->displayFrame.right - layer->displayFrame.left*2, 32);
     int srcpitch = ALIGN_UP(layer->sourceCrop.right - layer->sourceCrop.left*2, 32);
     int y;
@@ -227,7 +364,7 @@ static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_l
     int dfpitch = ALIGN_UP(dfwidth*2, 32);
 	
 	vc_dispmanx_rect_set( &dst_rect, layer->displayFrame.left, layer->displayFrame.top, dfwidth, dfheight );
-	vc_dispmanx_rect_set( &src_rect, 0, 0, 1920 << 16, 1080 << 16);
+	vc_dispmanx_rect_set( &src_rect, 0, 0, dfwidth << 16, dfheight << 16);
 	void* frame = hwc_get_frame_data(dfpitch, dfheight);
 	hwc_set_frame_data(frame, layer);
     int ret = vc_dispmanx_resource_write_data(  layerResource,
@@ -283,11 +420,12 @@ static void hwc_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t 
 static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
                        hwc_display_contents_1_t** displays)
 {
+	ALOGI("%s",__FUNCTION__);
     for (int32_t i = numDisplays - 1; i >= 0; i--) {
         hwc_display_contents_1_t *list = displays[i];
 		if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
 			for (size_t i=0 ; i<list->numHwLayers ; i++) {
-				//dump_layer(&list->hwLayers[i]);
+				dump_layer(&list->hwLayers[i]);
 				hwc_get_rd_layer(&list->hwLayers[i], lr);
 				if(hwc_can_render_layer(lr)){
 					if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
@@ -303,7 +441,54 @@ static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
 }
 int hwc_getDisplayAttributes(struct hwc_composer_device_1* dev, int disp,
         uint32_t config, const uint32_t* attributes, int32_t* values) {
+	ALOGI("%s",__FUNCTION__);
+   
+    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    //If hotpluggable displays are inactive return error
+    if(disp == HWC_DISPLAY_EXTERNAL && !ctx->dpyAttr[disp].connected) {
+        return -1;
+    }
 
+    //From HWComposer
+    static const uint32_t DISPLAY_ATTRIBUTES[] = {
+        HWC_DISPLAY_VSYNC_PERIOD,
+        HWC_DISPLAY_WIDTH,
+        HWC_DISPLAY_HEIGHT,
+        HWC_DISPLAY_DPI_X,
+        HWC_DISPLAY_DPI_Y,
+        HWC_DISPLAY_NO_ATTRIBUTE,
+    };
+
+    const int NUM_DISPLAY_ATTRIBUTES = (sizeof(DISPLAY_ATTRIBUTES) /
+            sizeof(DISPLAY_ATTRIBUTES)[0]);
+
+    for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
+        switch (attributes[i]) {
+        case HWC_DISPLAY_VSYNC_PERIOD:
+            values[i] = ctx->dpyAttr[disp].vsync_period;
+            break;
+        case HWC_DISPLAY_WIDTH:
+            values[i] = ctx->dpyAttr[disp].xres;
+            ALOGD("%s disp = %d, width = %d",__FUNCTION__, disp,
+                    ctx->dpyAttr[disp].xres);
+            break;
+        case HWC_DISPLAY_HEIGHT:
+            values[i] = ctx->dpyAttr[disp].yres;
+            ALOGD("%s disp = %d, height = %d",__FUNCTION__, disp,
+                    ctx->dpyAttr[disp].yres);
+            break;
+        case HWC_DISPLAY_DPI_X:
+            values[i] = (int32_t) (ctx->dpyAttr[disp].xdpi*1000.0);
+            break;
+        case HWC_DISPLAY_DPI_Y:
+            values[i] = (int32_t) (ctx->dpyAttr[disp].ydpi*1000.0);
+            break;
+        default:
+            ALOGE("Unknown display attribute %d",
+                    attributes[i]);
+            return -EINVAL;
+        }
+    }
     return 0;
 }
 
@@ -311,6 +496,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
                    size_t numDisplays,
                    hwc_display_contents_1_t** displays)
 {
+    ALOGI("%s",__FUNCTION__);
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
@@ -346,6 +532,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
 
 static int hwc_device_close(struct hw_device_t *dev)
 {
+    ALOGI("%s",__FUNCTION__);
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if (ctx) {
         vc_dispmanx_resource_delete(ctx->resources[ctx->selectResource]);
@@ -360,6 +547,7 @@ static int hwc_device_close(struct hw_device_t *dev)
 static int hwc_query(struct hwc_composer_device_1* dev,
                      int param, int* value)
 {
+    ALOGI("%s",__FUNCTION__);
     hwc_context_t* ctx = (hwc_context_t*)(dev);
     //private_module_t* m = reinterpret_cast<private_module_t*>(/
      //   ctx->mFbDev->common.module);
@@ -392,12 +580,12 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
                            struct hw_device_t** device)
 {
     int status = -EINVAL;
-
+ALOGI("%s",__FUNCTION__);
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
         struct hwc_context_t *dev;
         dev = (hwc_context_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
-
+		init_context(dev) ;
         //Initialize hwc context
         //initContext(dev);
 

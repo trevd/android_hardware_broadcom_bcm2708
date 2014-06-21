@@ -28,12 +28,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef KHRN_IMAGE_H
 #define KHRN_IMAGE_H
 
-#include "interface/khronos/common/khrn_int_image.h"
-#include "middleware/khronos/common/khrn_interlock.h"
-#include "middleware/khronos/common/khrn_mem.h"
+#include <khronos/common/khrn_int_image.h>
+#include <middleware/khronos/common/khrn_interlock.h>
+#include <middleware/khronos/common/khrn_mem.h>
 
 #ifdef _VIDEOCORE
-#include "helpers/vc_image/vc_image.h"
+#include <helpers/vc_image/vc_image.h>
 #endif
 
 #include <string.h>

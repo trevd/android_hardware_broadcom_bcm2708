@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define LOG_TAG "egl_client"
 #endif
 #include <utils/Log.h>
-/*
+
 /*
    Global preconditions?
 
@@ -596,20 +596,20 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLSurface result;
-	ALOGI("%s dpy=0x%x config=%p,win=%d[%p] attrib_list=%p",__FUNCTION__,dpy,config,win,win,attrib_list);
-   vcos_log_trace("eglCreateWindowSurface for window %p", win);
+	//ALOGI("%s dpy=0x%x config=%p,win=%d[%p] attrib_list=%p",__FUNCTION__,(dpy,config,win,win,attrib_list);
+   //vcos_log_trace("eglCreateWindowSurface for window %p", win);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
       uint32_t handle = platform_get_handle(dpy, win);
 		ALOGI("%s handle=%d[0x%x]",__FUNCTION__,handle,handle);
       if ((int)(size_t)config < 1 || (int)(size_t)config > EGL_MAX_CONFIGS) {
-		  ALOGI("%s EGL_BAD_CONFIG[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_CONFIG,EGL_NO_SURFACE);
+		  ALOGI("%s EGL_BAD_CONFIG result=EGL_NO_SURFACE",__FUNCTION__);
          thread->error = EGL_BAD_CONFIG;
          result = EGL_NO_SURFACE;
       } else if (handle == PLATFORM_WIN_NONE) {
          // The platform reports that this is an invalid window handle
-         ALOGI("%s EGL_BAD_NATIVE_WINDOW[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_NATIVE_WINDOW,EGL_NO_SURFACE);
+         ALOGI("%s EGL_BAD_NATIVE_WINDOW result=EGL_NO_SURFACE",__FUNCTION__);
          thread->error = EGL_BAD_NATIVE_WINDOW;
          result = EGL_NO_SURFACE;
       } else {
@@ -618,33 +618,33 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
          bool single = false;
 
          if (!egl_surface_check_attribs(WINDOW, attrib_list, &linear, &premult, &single, 0, 0, 0, 0, 0, 0)) {
-			 ALOGI("%s EGL_BAD_ATTRIBUTE[0x%x] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_ATTRIBUTE,EGL_NO_SURFACE);
+			 ALOGI("%s EGL_BAD_ATTRIBUTE result=EGL_NO_SURFACE",__FUNCTION__);
             thread->error = EGL_BAD_ATTRIBUTE;
             result = EGL_NO_SURFACE;
          } else {
             EGL_SURFACE_T *surface;
 
             uint32_t width, height;
-            uint32_t num_buffers = 3;
+            uint32_t num_buffers = 2;
             uint32_t swapchain_count;
 
             platform_get_dimensions(dpy,
-                  win, &width, &height, &swapchain_count);
-
+                  0, &width, &height, &swapchain_count);
+			ALOGI("%s width=%d , height=%d EGL_CONFIG_MAX_HEIGHT=%d",__FUNCTION__,width,height,EGL_CONFIG_MAX_HEIGHT);
             if (swapchain_count > 0)
-               num_buffers = swapchain_count;
+               num_buffers = 2;
             else
             {
                if (khrn_options.double_buffer)
                   num_buffers = 2;
             }
 			width = 1920;
-			height= 1080;
+			height= 2160;
 
             if (width <= 0 || width > EGL_CONFIG_MAX_WIDTH || height <= 0 || height > EGL_CONFIG_MAX_HEIGHT) {
                /* TODO: Maybe EGL_BAD_ALLOC might be more appropriate? */
                
-               ALOGI("%s EGL_BAD_NATIVE_WINDOW[0x%x] [1] result=EGL_NO_SURFACE[0x%x]",__FUNCTION__,EGL_BAD_NATIVE_WINDOW,EGL_NO_SURFACE);
+               ALOGI("%s EGL_BAD_NATIVE_WINDOW result=EGL_NO_SURFACE",__FUNCTION__);
                thread->error = EGL_BAD_NATIVE_WINDOW;
                result = EGL_NO_SURFACE;
             } else {
@@ -653,11 +653,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
                                 WINDOW,
                                 linear ? LINEAR : SRGB,
                                 premult ? PRE : NONPRE,
-#ifdef DIRECT_RENDERING
-                                1,
-#else
-                                (uint32_t)(single ? 1 : num_buffers),
-#endif
+                               2,
                                 width, height,
                                 config,
                                 win,
@@ -1129,7 +1125,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surf)
 EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy, EGLSurface surf,
             EGLint attribute, EGLint *value)
 {
-	ALOGI("%s dpy=0x%x surf=%p attribute=0x%x value=0x%x",__FUNCTION__,dpy,surf,attribute,(*value)) ;	
+	ALOGI("%s dpy=%p surf=%p attribute=0x%x value=0x%x",__FUNCTION__,dpy,surf,attribute,(*value)) ;	
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
@@ -1991,6 +1987,7 @@ static void flush_current_api(CLIENT_THREAD_STATE_T *thread)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglMakeCurrent(EGLDisplay dpy, EGLSurface dr, EGLSurface rd, EGLContext ctx)
 {
+   ALOGI("%s",__FUNCTION__);
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_THREAD_STATE();
    EGLBoolean result;
    CLIENT_PROCESS_STATE_T *process = NULL; /* init to avoid warnings */

@@ -35,7 +35,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <khronos/common/khrn_int_image.h>
 
-#include <khronos/egl/egl_int_config.h>
 
 #if defined(__BCM2708A0__) || defined(__BCM35230A0__)
    #define EGL_NO_ALPHA_MASK_CONFIGS
@@ -80,7 +79,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
    EGL_CONFIG_MAX_HEIGHT > 0
 */
-#define EGL_CONFIG_MAX_HEIGHT 2048
+#define EGL_CONFIG_MAX_HEIGHT 2160
 
 /*
    EGLConfig egl_config_from_id(int id)

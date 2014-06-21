@@ -130,14 +130,11 @@ static INLINE bool is_path_format(int32_t path_format)
 
 static INLINE bool is_path_datatype(VGPathDatatype path_datatype)
 {
-#ifdef __HIGHC__
-   #pragma Offwarn(428) /* unsigned compare with 0 always true */
-#endif
-   return (path_datatype >= VG_PATH_DATATYPE_S_8) &&
+	// VGPathDatatype is an unsigned int and VG_PATH_DATATYPE_S_8 =0
+	// so checking path_datatype >= VG_PATH_DATATYPE_S_8 is redundant
+	return 
           (path_datatype <= VG_PATH_DATATYPE_F);
-#ifdef __HIGHC__
-   #pragma Popwarn
-#endif
+
 }
 
 static INLINE uint32_t get_path_datatype_size(VGPathDatatype path_datatype)
@@ -222,10 +219,8 @@ static INLINE bool is_hardware_query_type(VGHardwareQueryType hardware_query_typ
 
 static INLINE bool is_image_format(VGImageFormat image_format)
 {
-#ifdef __HIGHC__
-   #pragma Offwarn(428) /* unsigned compare with 0 always true */
-#endif
-   return ((image_format >= VG_sRGBX_8888) &&
+
+   return (
           (image_format <= VG_A_4)) ||
           (image_format == VG_sXRGB_8888) ||
           (image_format == VG_sARGB_8888) ||
@@ -252,9 +247,7 @@ static INLINE bool is_image_format(VGImageFormat image_format)
           (image_format == VG_lXBGR_8888) ||
           (image_format == VG_lABGR_8888) ||
           (image_format == VG_lABGR_8888_PRE);
-#ifdef __HIGHC__
-   #pragma Popwarn
-#endif
+
 }
 
 static INLINE bool is_arc_type(VGUArcType arc_type)

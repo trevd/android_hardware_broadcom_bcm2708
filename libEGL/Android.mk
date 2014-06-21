@@ -42,10 +42,7 @@ LOCAL_SRC_FILES := egl/egl_client_config.c \
 		common/khrn_int_hash.c \
 		common/khrn_client_cache.c \
 		common/khrn_int_hash_asm.s \
-		wf/wfc_client_stream.c \
-		wf/wfc_client.c \
-		wf/wfc_client_server_api.c \
-		wf/wfc_client_ipc.c
+	
 		
 LOCAL_SHARED_LIBRARIES := libvchiq_arm libvcos libm liblog libvchostif libgralloc.bcm2708 liblog
 LOCAL_MODULE_TAGS := optional
