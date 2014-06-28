@@ -602,7 +602,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
       uint32_t handle = platform_get_handle(dpy, win);
-		ALOGI("%s handle=%d[0x%x]",__FUNCTION__,handle,handle);
+		ALOGI("%s handle=%d[0x%x] dpy=%d win=%p",__FUNCTION__,handle,handle,dpy, win);
       if ((int)(size_t)config < 1 || (int)(size_t)config > EGL_MAX_CONFIGS) {
 		  ALOGI("%s EGL_BAD_CONFIG result=EGL_NO_SURFACE",__FUNCTION__);
          thread->error = EGL_BAD_CONFIG;
@@ -630,7 +630,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
 
             platform_get_dimensions(dpy,
                   0, &width, &height, &swapchain_count);
-			ALOGI("%s width=%d , height=%d EGL_CONFIG_MAX_HEIGHT=%d",__FUNCTION__,width,height,EGL_CONFIG_MAX_HEIGHT);
+			ALOGI("%s dpy=%d width=%d , height=%d EGL_CONFIG_MAX_HEIGHT=%d",__FUNCTION__,dpy,width,height,EGL_CONFIG_MAX_HEIGHT);
             if (swapchain_count > 0)
                num_buffers = 2;
             else
@@ -638,8 +638,8 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
                if (khrn_options.double_buffer)
                   num_buffers = 2;
             }
-			width = 1920;
-			height= 2160;
+			//width = 1920;
+			//height= 2160;
 
             if (width <= 0 || width > EGL_CONFIG_MAX_WIDTH || height <= 0 || height > EGL_CONFIG_MAX_HEIGHT) {
                /* TODO: Maybe EGL_BAD_ALLOC might be more appropriate? */
@@ -2262,17 +2262,13 @@ EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative(EGLint engine)
 
 EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 {
-	ALOGI("%s",__FUNCTION__);
-#ifdef DIRECT_RENDERING
-   /* Wrapper layer shouldn't call eglSwapBuffers */
-   UNREACHABLE();
-   return EGL_FALSE;
-#else
+	//ALOGI("%s",__FUNCTION__);
+
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
 
-   vcos_log_trace("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
+   ALOGD("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
@@ -2282,7 +2278,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
       surface = client_egl_get_surface(thread, process, surf);
 
-      vcos_log_trace("eglSwapBuffers get surface %x",(int)surface);
+      //ALOGD("eglSwapBuffers get surface %x",(int)surface);
 
       if (surface) {
 
@@ -2324,9 +2320,8 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
                   surface->height = height;
                }
 
-               vcos_log_trace("eglSwapBuffers comparison: %d %d, %d %d",
-                        surface->width, surface->base_width, surface->height,
-                        surface->base_height);
+               ALOGD("eglSwapBuffers comparison: %d %d, %d %d",
+                        surface->base_height , surface->base_width, surface->height, surface->width);
 
                /* TODO: raise EGL_BAD_ALLOC if we try to enlarge window and then run out of memory
 
@@ -2339,7 +2334,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
                platform_surface_update(surface->internal_handle);
 
-               vcos_log_trace("eglSwapBuffers server call");
+               //ALOGD("eglSwapBuffers server call");
 
                RPC_CALL6(eglIntSwapBuffers_impl,
                      thread,
@@ -2353,38 +2348,13 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
                RPC_FLUSH(thread);
 
-#ifdef ANDROID
+
                CLIENT_UNLOCK();
                platform_dequeue(dpy, surface->win);
                CLIENT_LOCK();
-#else
 
-#  ifdef KHRONOS_EGL_PLATFORM_OPENWFC
-               wfc_stream_await_buffer((WFCNativeStreamType) surface->internal_handle);
-#  else
-#     ifndef RPC_LIBRARY
-               if (surface->buffers > 1) {
-                  //TODO implement khan (khronos async notification) receiver for linux
-#        ifndef RPC_DIRECT_MULTI
-                  vcos_log_trace("eglSwapBuffers waiting for semaphore");
-                  khronos_platform_semaphore_acquire(&surface->avail_buffers);
-#        endif
-               }
-#     endif // RPC_LIBRARY
-#  endif // KHRONOS_EGL_PLATFORM_OPENWFC
 
-#endif   /* ANDROID */
-
-            } else {
-#ifdef KHRN_COMMAND_MODE_DISPLAY
-//Check for single buffered windows surface (and VG) in which case call vgFlush to allow screen update for command mode screens
-               EGL_SURFACE_T *surface = CLIENT_GET_THREAD_STATE()->openvg.draw;
-               if (surface->type == WINDOW && surface->buffers==1 && thread->bound_api == EGL_OPENVG_API) {
-                  vgFlush();
-               }
-#endif
             }
-            // else do nothing. eglSwapBuffers has no effect on pixmap or pbuffer surfaces
          }
       }
 
@@ -2394,10 +2364,10 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
    else
       result = EGL_FALSE;
 
-   vcos_log_trace("eglSwapBuffers end");
+ //  ALOGD("eglSwapBuffers end");
 
    return result;
-#endif // DIRECT_RENDERING
+
 }
 
 EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy, EGLSurface surf, EGLNativePixmapType target)

@@ -24,7 +24,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
+#define LOG_TAG "egl_client_get_proc"
+#include <utils/Log.h>
 #include <khronos/common/khrn_client_unmangle.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
@@ -73,7 +74,8 @@ EGLAPI void EGLAPIENTRY (* eglGetProcAddress(const char *procname))(void)
 /* Don't mangle the rest */
 #include <khronos/common/khrn_client_unmangle.h>
 #include <EGL/eglext.h>
-
+	//ALOGD("%s procname=%s",__FUNCTION__,procname);
+   
    /* TODO: any other functions we need to return here?    */
    if(!procname) return (void(*)(void)) NULL;
 
@@ -253,7 +255,9 @@ EGLAPI void EGLAPIENTRY (* eglGetProcAddress(const char *procname))(void)
    if (!strcmp(procname, "eglQueryGlobalImageBRCM"))
       return (void(*)(void))eglQueryGlobalImageBRCM;
 #endif
-
+  // if (!strcmp(procname, "eglGetRenderBufferANDROID"))
+   //	return (void(*)(void))eglGetRenderBufferANDROID;
+   	
    return (void(*)(void)) NULL;
 }
 

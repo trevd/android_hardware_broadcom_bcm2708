@@ -255,7 +255,7 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
          }
          break;
 #endif
-#if EGL_ANDROID_framebuffer_target
+//#if EGL_ANDROID_framebuffer_target
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
          switch (value) {
          case EGL_DONT_CARE:{
@@ -276,7 +276,7 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
          }
          }
          break;
-#endif
+//#endif
       default:
          return false;
       }
@@ -661,12 +661,12 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
       //ALOGI("%s ConfigID=%d attrib=EGL_RECORDABLE_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
 #endif
-#if EGL_ANDROID_framebuffer_target
+//#if EGL_ANDROID_framebuffer_target
 	case EGL_FRAMEBUFFER_TARGET_ANDROID:
       *value = EGL_TRUE;
       //ALOGI("%s ConfigID=%d attrib=EGL_FRAMEBUFFER_TARGET_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
-#endif
+//#endif
    default:
 	  //ALOGI("%s LEAVE RETURN FALSE id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
       return false;
@@ -763,9 +763,9 @@ bool egl_config_filter(int id, const EGLint *attrib_list)
 #if EGL_ANDROID_recordable
       case EGL_RECORDABLE_ANDROID:
 #endif
-#if EGL_ANDROID_framebuffer_target
+//#if EGL_ANDROID_framebuffer_target
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
-#endif
+//#endif
          if (value != EGL_DONT_CARE && value != actual_value)
             return false;
          break;
