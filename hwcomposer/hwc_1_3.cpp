@@ -36,6 +36,15 @@
 #ifndef ALIGN_UP
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
+
+enum HWCCompositionType {
+    HWC_USE_GPU = HWC_FRAMEBUFFER, // This layer is to be handled by
+                                   // Surfaceflinger
+    HWC_USE_OVERLAY = HWC_OVERLAY, // This layer is to be handled by the overlay
+    HWC_USE_BACKGROUND
+                = HWC_BACKGROUND,  // This layer is to be handled by TBD
+    HWC_USE_COPYBIT = 4            // This layer is to be handled by copybit
+};
 /*****************************************************************************/
 struct DisplayAttributes {
     uint32_t vsync_period; //nanos
@@ -71,6 +80,7 @@ struct hwc_context_t {
     DISPMANX_MODEINFO_T info;
     DISPMANX_RESOURCE_HANDLE_T resources[2];
     bool selectResource;
+     hwc_display_t dpys[HWC_NUM_DISPLAY_TYPES];
 };
 
 struct hwc_layer_rd {
@@ -116,22 +126,28 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 };
 /*****************************************************************************/
 static void hwc_get_rd_layer(hwc_layer_1_t *src, struct hwc_layer_rd *dst){
+	//ALOGD("%s src=%p src->format=%d",__FUNCTION__,src,src->format);
 	dst->layer = src;
-	dst->format = HAL_PIXEL_FORMAT_RGBA_8888; //XXX: FIX THIS HACK
+	dst->format = HAL_PIXEL_FORMAT_RGBA_8888 ;
+	//src->format; 
+	// HAL_PIXEL_FORMAT_RGBA_8888; 
+	//XXX: FIX THIS HACK
+}
+static void dump_layer(hwc_layer_1_t const* l)
+{
+    ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}"
+          ", {%d,%d,%d,%d}",
+          l->compositionType, l->flags, l->handle, l->transform, l->blending,
+          l->sourceCrop.left,
+          l->sourceCrop.top,
+          l->sourceCrop.right,
+          l->sourceCrop.bottom,
+          l->displayFrame.left,
+          l->displayFrame.top,
+          l->displayFrame.right,
+          l->displayFrame.bottom);
 }
 
-static void dump_layer(hwc_layer_1_t const* l) {
-    ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
-            l->compositionType, l->flags, l->handle, l->transform, l->blending,
-            l->sourceCrop.left,
-            l->sourceCrop.top,
-            l->sourceCrop.right,
-            l->sourceCrop.bottom,
-            l->displayFrame.left,
-            l->displayFrame.top,
-            l->displayFrame.right,
-            l->displayFrame.bottom);
-}
 
 static int init_context(hwc_context_t *ctx)
 {
@@ -168,35 +184,43 @@ static int init_context(hwc_context_t *ctx)
     ctx->dpyAttr[HWC_DISPLAY_PRIMARY].vsync_period = 1000000000l / fps;
 
     //Unblank primary on first boot
-    if(ioctl(fb_fd, FBIOBLANK,FB_BLANK_UNBLANK) < 0) {
-        ALOGE("%s: Failed to unblank display", __FUNCTION__);
-        return -errno;
-    }
+    //if(ioctl(fb_fd, FBIOBLANK,FB_BLANK_UNBLANK) < 0) {
+    //    ALOGE("%s: Failed to unblank display", __FUNCTION__);
+    //    return -errno;
+    //}
     ctx->dpyAttr[HWC_DISPLAY_PRIMARY].isActive = true;
-	ctx->vstate.enable = false;
+	ctx->vstate.enable = true;
     ctx->vstate.fakevsync = true;
     return 0;
 
     
 }
-static bool hwc_can_render_layer(struct hwc_layer_rd *layer)
+// hwc_can_render_layer
+// Returns 0 on success and -1 on Error
+static int32_t  hwc_can_render_layer(uint32_t format)
 {
-    bool ret = false;
-	switch(layer->format){
+    int32_t ret = 0;
+	switch(format){
 	case HAL_PIXEL_FORMAT_RGB_565:
+		ALOGD("%s HAL_PIXEL_FORMAT_RGB_565",__FUNCTION__);
+		break;
     case HAL_PIXEL_FORMAT_RGBX_8888:
+    	ALOGD("%s HAL_PIXEL_FORMAT_RGBX_8888",__FUNCTION__);
+		break;
     case HAL_PIXEL_FORMAT_RGBA_8888:
-		ret=true;
+    	ALOGD("%s HAL_PIXEL_FORMAT_RGBA_8888",__FUNCTION__);
 		break;
 	default:
-		ret=false;
+		ret=-1;
+		ALOGD("%s ret=%d format=%d",__FUNCTION__);
 		break;
 	}
+	
 	return ret;
 }
 
 static VC_IMAGE_TYPE_T hwc_format_to_vc_format(struct hwc_layer_rd *layer){
-    VC_IMAGE_TYPE_T ret = VC_IMAGE_RGBA32;
+    VC_IMAGE_TYPE_T ret = VC_IMAGE_RGB565;
 	switch(layer->format){
 	case HAL_PIXEL_FORMAT_RGB_565:
 		ret=VC_IMAGE_RGB565;
@@ -230,11 +254,13 @@ int hwc_getDisplayConfigs(struct hwc_composer_device_1* dev, int disp,
                 configs[0] = 0;
                 *numConfigs = 1;
             }
-            ALOGI("%s HWC_DISPLAY_PRIMARY",__FUNCTION__);
+            ALOGI("%s HWC_DISPLAY_PRIMARY numConfigs=%d",__FUNCTION__,*numConfigs);
             ret = 0; //NO_ERROR
             break;
         case HWC_DISPLAY_EXTERNAL:
-        ALOGI("%s HWC_DISPLAY_PRIMARY",__FUNCTION__);
+			ALOGI("%s HWC_DISPLAY_EXTERNAL",__FUNCTION__);
+			ret = -1; //Not connected
+            break;
         default:
             ret = -1; //Not connected
             break;
@@ -248,11 +274,11 @@ static int hwc_eventControl(struct hwc_composer_device_1* dev, int dpy,
 	ALOGI("%s event=%d",__FUNCTION__,event);
 	    int ret = 0;
     hwc_context_t* ctx = (hwc_context_t*)(dev);
-    if(!ctx->dpyAttr[dpy].isActive) {
-        ALOGE("Display is blanked - Cannot %s vsync",
-              enable ? "enable" : "disable");
-        return 0;
-    }
+    //if(!ctx->dpyAttr[dpy].isActive) {
+    //    ALOGE("Display is blanked - Cannot %s vsync",
+    //          enable ? "enable" : "disable");
+    //    return 0;
+    //}
 
     switch(event) {
         case HWC_EVENT_VSYNC:
@@ -339,6 +365,7 @@ static void hwc_set_frame_data(void *frame, hwc_layer_1_t *layer) {
 }
 
 static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t *layer){
+	ALOGI("%s",__FUNCTION__);
     RECT_VARS_T    *vars;
 	vars = &gRectVars;
 	VC_RECT_T       dst_rect, src_rect;
@@ -410,7 +437,7 @@ static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_l
 }
 
 static void hwc_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t *layer){
-	
+	ALOGI("%s",__FUNCTION__);
 	if(layer->compositionType == HWC_OVERLAY){
 		hwc_actually_do_stuff_with_layer(dev, layer);
 	}
@@ -427,7 +454,7 @@ static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
 			for (size_t i=0 ; i<list->numHwLayers ; i++) {
 				dump_layer(&list->hwLayers[i]);
 				hwc_get_rd_layer(&list->hwLayers[i], lr);
-				if(hwc_can_render_layer(lr)){
+				if(!hwc_can_render_layer(lr->format)){
 					if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
 					list->hwLayers[i].compositionType = HWC_OVERLAY;
 				}else{
@@ -445,9 +472,9 @@ int hwc_getDisplayAttributes(struct hwc_composer_device_1* dev, int disp,
    
     hwc_context_t* ctx = (hwc_context_t*)(dev);
     //If hotpluggable displays are inactive return error
-    if(disp == HWC_DISPLAY_EXTERNAL && !ctx->dpyAttr[disp].connected) {
-        return -1;
-    }
+    //if(disp == HWC_DISPLAY_EXTERNAL && !ctx->dpyAttr[disp].connected) {
+    //    return -1;
+    //}
 
     //From HWComposer
     static const uint32_t DISPLAY_ATTRIBUTES[] = {
@@ -497,14 +524,15 @@ static int hwc_set(hwc_composer_device_1 *dev,
                    hwc_display_contents_1_t** displays)
 {
     ALOGI("%s",__FUNCTION__);
-    //for (size_t i=0 ; i<list->numHwLayers ; i++) {
-    //    dump_layer(&list->hwLayers[i]);
-    //}
+
 	  int ret = 0;
 	const int dpy = HWC_DISPLAY_PRIMARY;
     hwc_context_t* ctx = (hwc_context_t*)(dev);
     for (uint32_t i = 0; i < numDisplays; i++) {
         hwc_display_contents_1_t* list = displays[i];
+            for (size_t i=0 ; i<list->numHwLayers ; i++) {
+        dump_layer(&list->hwLayers[i]);
+    }
 		if(list == NULL){	//NULL list means hwc won't run or we're powering down screen
 			if(dpy && list->sur){	//if we have dpy and sur, hwcomposer has been disabled. swap buffers and leave.
 				if(HWC_DBG)	ALOGD("list == NULL");
@@ -512,7 +540,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
 			}
 		}
 		
-		ALOGD("%s dpy=%p sur=%p",__FUNCTION__,list->dpy, list->sur);
+	ALOGI("%s EGLDisplay dpy=%p sur=%p",__FUNCTION__,(EGLDisplay)list->dpy,(EGLSurface)list->sur);
 		EGLBoolean success = eglSwapBuffers((EGLDisplay)list->dpy, (EGLSurface)list->sur);
 		if (!success) {
 			if(HWC_DBG)	ALOGD("eglSwapBuffers errored.");
@@ -607,12 +635,12 @@ ALOGI("%s",__FUNCTION__);
 
      
         status = 0;
-		
-		bcm_host_init();
+		lr = (struct hwc_layer_rd *)malloc(sizeof(struct hwc_layer_rd));
+		/*bcm_host_init();
 		
 	    dev->disp = vc_dispmanx_display_open( 0 );
-	lr = (struct hwc_layer_rd *)malloc(sizeof(struct hwc_layer_rd));
-
+	
+ALOGI("%s dev->info.input_format=%d",__FUNCTION__,dev->info.input_format);
         RECT_VARS_T *vars;
         vars = &gRectVars;
         dev->resources[0] = vc_dispmanx_resource_create(convertDisplayFormatToImageType(dev->info.input_format),
@@ -621,7 +649,7 @@ ALOGI("%s",__FUNCTION__);
                 dev->info.width, dev->info.height, &vars->vc_image_ptr);
 
         dev->selectResource = false;
-
+*/
     }
     return status;
 }
