@@ -33,43 +33,32 @@
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
 static VC_IMAGE_TYPE_T format_to_vc_format(int format){
+ALOGD("%s",__FUNCTION__);
     VC_IMAGE_TYPE_T ret = VC_IMAGE_RGBA32;
 	switch(format){
 	case HAL_PIXEL_FORMAT_RGB_565:
+		ALOGD("%s HAL_PIXEL_FORMAT_RGB_565",__FUNCTION__);
 		ret=VC_IMAGE_RGB565;
 		break;
 	case HAL_PIXEL_FORMAT_RGBX_8888:
+		ALOGD("%s HAL_PIXEL_FORMAT_RGBX_8888",__FUNCTION__);
 		ret=VC_IMAGE_RGBX8888;
 		break;
 	case HAL_PIXEL_FORMAT_RGBA_8888:
+		ALOGD("%s HAL_PIXEL_FORMAT_RGBA_8888",__FUNCTION__);
 		ret=VC_IMAGE_RGBA32;
 		break;
 	default:
+	ALOGD("%s unknown format=%d",__FUNCTION__,format);
 		break;
 	}
 	return ret;
 }
 
-void alloc_dispmanx_window_size(private_handle_t* handle)
-{
-    DISPMANX_MODEINFO_T info;
-    EGL_DISPMANX_WINDOW_T window;
-    vc_dispmanx_display_get_info(handle->brcm_handle->dispman_display, &info);
-    window.height = info.height;
-    window.width = info.width;
-    handle->brcm_handle->window = window;
-}
-
-void alloc_dispmanx_default_values(private_handle_t* handle)
-{
-    handle->brcm_handle->gl_format = GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE;
-    handle->brcm_handle->stride = ALIGN_UP(handle->brcm_handle->window.width, 32);
-    handle->brcm_handle->res_type = GRALLOC_PRIV_TYPE_MM_RESOURCE;
-    handle->brcm_handle->egl_image = (EGLImageKHR) 0xBADF00D;
-}
 
 void open_display(private_handle_t* handle)
 {
+    ALOGD("%s",__FUNCTION__);
     handle->brcm_handle->dispman_display = vc_dispmanx_display_open(0);
 }
 
@@ -94,17 +83,28 @@ void write_buffer_dispmanx(private_handle_t* handle)
 int dispmanx_alloc(private_handle_t* handle)
 {
   
-	ALOGI("%s",__FUNCTION__);
+	ALOGD("%s handle->brcm_handle=%p",__FUNCTION__,handle->brcm_handle);
+	if(handle->brcm_handle){
+		ALOGD("%s Already Allocated!",__FUNCTION__);
+		return 0; 
+	}
+	
    bcm_host_init();
     VC_RECT_T src_rect;
     VC_RECT_T dst_rect;
-
+	uint32_t display_width;
+	uint32_t display_height;
     handle->brcm_handle = (struct gralloc_private_handle_t*) malloc(sizeof(struct gralloc_private_handle_t));
+ 
+    handle->brcm_handle->gl_format = GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE;
+    handle->brcm_handle->stride = ALIGN_UP(display_width, 32);
+    handle->brcm_handle->res_type = GRALLOC_PRIV_TYPE_GL_RESOURCE;
+    handle->brcm_handle->egl_image = (EGLImageKHR) 0xBADF00D;
+   
 
-    open_display(handle);
-    alloc_dispmanx_window_size(handle);
-    alloc_dispmanx_default_values(handle);
-
+	graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+	handle->brcm_handle->window.width = display_width;
+	handle->brcm_handle->window.height = display_height;
     dst_rect.x = 0;
     dst_rect.y = 0;
     dst_rect.width = handle->brcm_handle->window.width;
@@ -114,18 +114,20 @@ int dispmanx_alloc(private_handle_t* handle)
     src_rect.y = 0;
     src_rect.width = handle->brcm_handle->window.width << 16;
     src_rect.height = handle->brcm_handle->window.height << 16;
-VC_IMAGE_TYPE_T type = format_to_vc_format( handle->format);
+	VC_IMAGE_TYPE_T type = VC_IMAGE_RGB565 ; // format_to_vc_format( handle->format);
     uint32_t dummy = 0;
-    handle->brcm_handle->dispman_resource = vc_dispmanx_resource_create(type, dst_rect.width,
-            dst_rect.height, &dummy);
+    
+     handle->brcm_handle->dispman_display = vc_dispmanx_display_open(0);
+      handle->brcm_handle->dispman_update = vc_dispmanx_update_start(0);
+      handle->brcm_handle->window.element = vc_dispmanx_element_add(handle->brcm_handle->dispman_update, handle->brcm_handle->dispman_display,
+              0/*layer*/, &dst_rect, 0/*src*/,
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/,  (DISPMANX_TRANSFORM_T)0/*transform*/);
 
-    DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
-
-    handle->brcm_handle->window.element = vc_dispmanx_element_add(update, handle->brcm_handle->dispman_display,
-            -127/*layer*/, &dst_rect, handle->brcm_handle->dispman_resource, &src_rect,
-            DISPMANX_PROTECTION_NONE, 0, 0, (DISPMANX_TRANSFORM_T) 0);
-
-    vc_dispmanx_update_submit(update, 0, 0);
+    
+    
+    //handle->brcm_handle->dispman_resource = vc_dispmanx_resource_create(type, dst_rect.width, dst_rect.height, &dummy);
+    
+    vc_dispmanx_update_submit_sync(handle->brcm_handle->dispman_update);
 
     return 0;
 }
@@ -133,6 +135,7 @@ VC_IMAGE_TYPE_T type = format_to_vc_format( handle->format);
 
 int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int h, void** vaddr)
 {
+    ALOGD("%s",__FUNCTION__);
     // this is called when a buffer is being locked for software
     // access. in thin implementation we have nothing to do since
     // not synchronization with the h/w is needed.
@@ -151,6 +154,7 @@ int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int 
 
 int dispmanx_unlock(private_handle_t* handle)
 {
+    ALOGD("%s",__FUNCTION__);
     // flush the data cache
     write_buffer_dispmanx(handle);
 
