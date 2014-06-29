@@ -36,12 +36,6 @@
 
 #include <KHR/khrplatform.h>
 
-#ifdef ABSTRACT_PLATFORM
-#include "begl_memplatform.h"
-#include "begl_hwplatform.h"
-#include "begl_dispplatform.h"
-#endif /* ABSTRACT_PLATFORM */
-
 /* Macros used in EGL function prototype declarations.
  *
  * EGL functions should be prototyped as:
@@ -89,60 +83,19 @@
     typedef const char *NativeWindowType;
         etc.
  */
-#if (defined (__ANDROID__) || defined(ANDROID)) && defined(KHRN_BCG_ANDROID)
-
 
 struct egl_native_pixmap_t;
 
-typedef struct ANativeWindow* EGLNativeWindowType;
-typedef struct egl_native_pixmap_t*     EGLNativePixmapType;
-typedef void *EGLNativeDisplayType;
-
-#else
-
-typedef void *EGLNativeDisplayType;
-typedef void *EGLNativePixmapType;
-typedef void *EGLNativeWindowType;
-#endif
-
-#ifndef EGL_SERVER_SMALLINT
-
 #include <vmcs_host/vc_dispmanx.h>
-/* TODO: EGLNativeWindowType is really one of these but I'm leaving it
- * as void* for now, in case changing it would cause problems
- */
 typedef struct {
    DISPMANX_ELEMENT_HANDLE_T element;
    int width;   /* This is necessary because dispmanx elements are not queriable. */
    int height;
 } EGL_DISPMANX_WINDOW_T;
-#elif defined (ABSTRACT_PLATFORM)
 
-#else
-
-/* window I of a horizontal strip of N WxH windows */
-#define PACK_NATIVE_WINDOW(W, H, I, N) ((NativeWindowType)((W) | ((H) << 12) | ((I) << 24) | ((N) << 28)))
-#define UNPACK_NATIVE_WINDOW_W(WIN) ((unsigned int)(WIN) & 0xfff)
-#define UNPACK_NATIVE_WINDOW_H(WIN) (((unsigned int)(WIN) >> 12) & 0xfff)
-#define UNPACK_NATIVE_WINDOW_I(WIN) (((unsigned int)(WIN) >> 24) & 0xf)
-#define UNPACK_NATIVE_WINDOW_N(WIN) ((unsigned int)(WIN) >> 28)
-
-/* todo: can we change these to use PACK_NATIVE_WINDOW and get rid of platform_canonical_win from platform.h? */
-#define NATIVE_WINDOW_800_480    ((NativeWindowType)0)
-#define NATIVE_WINDOW_640_480    ((NativeWindowType)1)
-#define NATIVE_WINDOW_320_240    ((NativeWindowType)2)
-#define NATIVE_WINDOW_240_320    ((NativeWindowType)3)
-#define NATIVE_WINDOW_64_64      ((NativeWindowType)4)
-#define NATIVE_WINDOW_400_480_A  ((NativeWindowType)5)
-#define NATIVE_WINDOW_400_480_B  ((NativeWindowType)6)
-#define NATIVE_WINDOW_512_512    ((NativeWindowType)7)
-#define NATIVE_WINDOW_360_640    ((NativeWindowType)8)
-#define NATIVE_WINDOW_640_360    ((NativeWindowType)9)
-#define NATIVE_WINDOW_1280_720   ((NativeWindowType)10)
-#define NATIVE_WINDOW_1920_1080  ((NativeWindowType)11)
-#define NATIVE_WINDOW_480_320    ((NativeWindowType)12)
-#define NATIVE_WINDOW_1680_1050  ((NativeWindowType)13)
-#endif
+typedef struct ANativeWindow* EGLNativeWindowType;
+typedef struct egl_native_pixmap_t*     EGLNativePixmapType;
+typedef EGL_DISPMANX_WINDOW_T* EGLNativeDisplayType;
 
 /* EGL 1.2 types, renamed for consistency in EGL 1.3 */
 typedef EGLNativeDisplayType NativeDisplayType;
@@ -158,48 +111,5 @@ typedef EGLNativeWindowType  NativeWindowType;
  * integer type.
  */
 typedef khronos_int32_t EGLint;
-
-#ifdef ABSTRACT_PLATFORM
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-/*
-The client application, or default platform library must register valid versions of each of these
-interfaces before any EGL or GL functions are invoked, using the following functions provided by the 3D driver.
-*/
-typedef struct
-{
-   BEGL_MemoryInterface  *memInterface;     /* Memory interface which will called by the 3d driver */
-   BEGL_HWInterface      *hwInterface;      /* Hardware interface which will be called by the driver */
-   BEGL_DisplayInterface *displayInterface; /* Display interface which will be called by the driver */
-
-   BEGL_DisplayCallbacks displayCallbacks; /* Callback pointers set by BEGL_GetDefaultDriverInterfaces, for client to call into driver */
-   int hwInterfaceCloned;
-   int memInterfaceCloned;
-   void *memInterfaceFn;
-   void *hwInterfaceFn;
-} BEGL_DriverInterfaces;
-
-/* Register application level overrides for any or all of the abstract API calls made by the 3D driver. */
-EGLAPI void EGLAPIENTRY BEGL_RegisterDriverInterfaces(BEGL_DriverInterfaces *iface);
-
-/* Get a pointer to the registered driver interfaces, can be used to override partial defaults - see android platform layer(s) for example */
-EGLAPI BEGL_DriverInterfaces * BEGL_GetDriverInterfaces(void);
-
-/* Initializes all interfaces in the structure to NULL, fills out Callbacks with appropriate function pointers */
-EGLAPI void EGLAPIENTRY BEGL_GetDefaultDriverInterfaces(BEGL_DriverInterfaces *iface);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* ABSTRACT_PLATFORM */
-
-#if 0
-#include "interface/khronos/common/khrn_client_mangle.h"
-#endif
 
 #endif /* __eglplatform_h */
