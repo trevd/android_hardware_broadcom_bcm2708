@@ -36,10 +36,7 @@ LOCAL_SRC_FILES := common/khrn_client.c \
 					ext/gl_oes_query_matrix_client.c \
 					glxx/glxx_client.c \
 					vg/vg_client.c \
-					vg/vg_int_mat3x3.c \
-					wf/wfc_client.c \
-					wf/wfc_client_ipc.c \
-					wf/wfc_client_server_api.c \
-					wf/wfc_client_stream.c
+					vg/vg_int_mat3x3.c
+					
 					
 
