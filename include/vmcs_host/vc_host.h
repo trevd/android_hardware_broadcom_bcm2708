@@ -27,8 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Header file with useful bits from other headers
 
-#ifndef BCM_HOST_H
-#define BCM_HOST_H
+#ifndef VC_HOST_H
+#define VC_HOST_H
 
 #include <stdint.h>
 
@@ -36,12 +36,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif
 
-void bcm_host_init(void);
-void bcm_host_deinit(void);
+void vc_host_open(void);
+void vc_host_close(void);
 
-int32_t graphics_get_display_size( const uint16_t display_number,
-                                                    uint32_t *width,
-                                                    uint32_t *height);
+
 
 #include <vmcs_host/vc_dispmanx.h>
 #include <vmcs_host/vc_tvservice.h>

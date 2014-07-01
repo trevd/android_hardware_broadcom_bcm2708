@@ -131,6 +131,12 @@ VCHPRE_ int VCHPOST_ vc_dispmanx_snapshot( DISPMANX_DISPLAY_HANDLE_T display,
 // Set the resource palette (for VC_IMAGE_4BPP and VC_IMAGE_8BPP)
 VCHPRE_ int VCHPOST_ vc_dispmanx_resource_set_palette( DISPMANX_RESOURCE_HANDLE_T handle, 
                                                       void * src_address, int offset, int size);
+                                                      
+                                                      
+int32_t vc_dispmanx_display_get_size( const uint16_t display_number,
+                                                    uint32_t *width,
+                                                    uint32_t *height);
+
 
 #ifdef __cplusplus
 }
