@@ -53,7 +53,7 @@ static void send_bound_pixmaps(void);
 
 VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int name[3], int count)
 {
-   ALOGV("%s name[0]=%d name[1]=%d name[2]=%d count=%d",__FUNCTION__,name[0], name[1], name[2],count);
+   ALOGD("%s name[0]=%d name[1]=%d name[2]=%d count=%d",__FUNCTION__,name[0], name[1], name[2],count);
    char buf[64];
    vcos_snprintf(buf,sizeof(buf),"KhanSemaphore%08x%08x%08x", name[0], name[1], name[2]);
    return vcos_named_semaphore_create(sem, buf, count);
@@ -72,11 +72,11 @@ static bool process_attached = false;
 void *platform_tls_get(PLATFORM_TLS_T tls)
 {
    void *ret;
-	ALOGV("%s",__FUNCTION__);
+	//ALOGD("%s",__FUNCTION__);
    if (!process_attached)
       /* TODO: this isn't thread safe */
    {
-      ALOGV("Attaching process");
+      ALOGD("Attaching process");
       client_process_attach();
       process_attached = true;
       tls = client_tls;
@@ -102,7 +102,7 @@ void *platform_tls_get(PLATFORM_TLS_T tls)
 
 void *platform_tls_get_check(PLATFORM_TLS_T tls)
 {
-  ALOGV("%s",__FUNCTION__);
+  //ALOGD("%s",__FUNCTION__);
    return platform_tls_get(tls);
 }
 
@@ -121,8 +121,6 @@ void platform_hint_thread_finished()
    */
 }
 
-#ifndef KHRN_PLATFORM_VCOS_NO_MALLOC
-
 /**
    Allocate memory
 
@@ -131,26 +129,18 @@ void platform_hint_thread_finished()
 **/
 void *khrn_platform_malloc(size_t size, const char * name)
 {
-	ALOGV("%s",__FUNCTION__);
    return vcos_malloc(size, name);
 }
-
 /**
    Free memory
-
    @param v Pointer to  memory area to free
 **/
 void khrn_platform_free(void *v)
 {
-	ALOGV("%s",__FUNCTION__);
-   if (v)
-   {
+   if (v){
       vcos_free(v);
    }
 }
-
-#endif
-
 
 static KHRN_IMAGE_FORMAT_T convert_format(uint32_t format)
 {	
@@ -241,43 +231,43 @@ void platform_get_global_image_info(uint32_t id_0, uint32_t id_1,
 
 void platform_client_lock(void)
 {
-	ALOGV("%s",__FUNCTION__);
+	//ALOGD("%s",__FUNCTION__);
    platform_mutex_acquire(&client_mutex);
 }
 
 void platform_client_release(void)
 {
-	ALOGV("%s",__FUNCTION__);
+	//ALOGD("%s",__FUNCTION__);
    platform_mutex_release(&client_mutex);
 }
 
 void platform_init_rpc(struct CLIENT_THREAD_STATE *state)
 {
-	ALOGV("%s",__FUNCTION__);
+	ALOGD("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_term_rpc(struct CLIENT_THREAD_STATE *state)
 {
-	ALOGV("%s",__FUNCTION__);
+	ALOGD("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_maybe_free_process(void)
 {
-	ALOGV("%s",__FUNCTION__);
+	ALOGD("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_destroy_winhandle(void *a, uint32_t b)
 {
-	ALOGV("%s",__FUNCTION__);
+	ALOGD("%s",__FUNCTION__);
    assert(1);
 }
 
 void platform_surface_update(uint32_t handle)
 {
-	ALOGI("%s handle=%p",__FUNCTION__,handle);
+	//	ALOGI("%s handle=%p",__FUNCTION__,handle);
    /*
    XXX This seems as good a place as any to do the client side pixmap hack.
    (called from eglSwapBuffers)
@@ -323,11 +313,11 @@ EGLDisplay khrn_platform_set_display_id(EGLNativeDisplayType display_id)
    else
       return EGL_NO_DISPLAY;
 }
-static int xxx_position = 0;
+
 uint32_t khrn_platform_get_window_position(EGLNativeWindowType win)
 {
-	ALOGI("%s %u",__FUNCTION__,xxx_position);
-   return xxx_position;
+	
+   return 0;
 }
 
 #define NUM_PIXMAP_BINDINGS 16
@@ -394,7 +384,7 @@ static void send_bound_pixmap(int i)
 
 static void send_bound_pixmaps(void)
 {
-	ALOGI("%s",__FUNCTION__);
+	//ALOGI("%s",__FUNCTION__);
    int i;
    for (i = 0; i < NUM_PIXMAP_BINDINGS; i++)
    {
@@ -430,7 +420,7 @@ void khrn_platform_bind_pixmap_to_egl_image(EGLNativePixmapType pixmap, EGLImage
 
 void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
 {
-	ALOGI("%s",__FUNCTION__);
+	 ALOGI("%s",__FUNCTION__);
    int i;
    for (i = 0; i < NUM_PIXMAP_BINDINGS; i++)
    {
@@ -441,27 +431,122 @@ void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
    }
 }
 
+#define NUM_WIN 6
+
+static bool have_default_dwin[NUM_WIN];
+static EGL_DISPMANX_WINDOW_T default_dwin[NUM_WIN];
+
+static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
+{
+   int wid = (int)win;
+   ALOGD("%s wid=%d win=%p",__FUNCTION__,wid,win);
+   if(wid>-NUM_WIN && wid <=0) {
+      /*
+       * Special identifiers indicating the default windows. Either use the
+       * one we've got or create a new one
+       * simple hack for VMCSX_VC4_1.0 release to demonstrate concurrent running of apps under linux
+
+       * win ==  0 => full screen window on display 0
+       * win == -1 => 1/4 screen top left window on display 0
+       * win == -2 => 1/4 screen top right window on display 0
+       * win == -3 => 1/4 screen bottom left window on display 0
+       * win == -4 => 1/4 screen bottom right window on display 0
+       * win == -5 => full screen window on display 2
+
+       * it is expected that Open WFC will provide a proper mechanism in the near future
+       */
+      wid = -wid;
+
+      if (!have_default_dwin[wid]) {
+         DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open( (wid == 5) ? 2 : 0 );
+         DISPMANX_MODEINFO_T info;
+         vc_dispmanx_display_get_info(display, &info);
+         int32_t dw = info.width, dh = info.height;
+
+         DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( 0 );
+         VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
+         VC_RECT_T dst_rect;
+         VC_RECT_T src_rect;
+
+         int x, y, width, height, layer;
+
+         switch(wid)
+         {
+         case 0:
+            x = 0;    y = 0;    width = dw;   height = dh;   layer = 0; break;
+         case 1:
+            x = 0;    y = 0;    width = dw/2; height = dh/2; layer = 0; break;
+         case 2:
+            x = dw/2; y = 0;    width = dw/2; height = dh/2; layer = 0; break;
+         case 3:
+            x = 0;    y = dh/2; width = dw/2; height = dh/2; layer = 0; break;
+         case 4:
+            x = dw/2; y = dh/2; width = dw/2; height = dh/2; layer = 0; break;
+         case 5:
+            x = 0;    y = 0;    width = dw;   height = dh;   layer = 0; break;
+         }
+
+         src_rect.x = 0;
+         src_rect.y = 0;
+         src_rect.width = width << 16;
+         src_rect.height = height << 16;
+
+         dst_rect.x = x;
+         dst_rect.y = y;
+         dst_rect.width = width;
+         dst_rect.height = height;
+
+         default_dwin[wid].element = vc_dispmanx_element_add ( update, display,
+            layer, &dst_rect, 0/*src*/,
+            &src_rect, DISPMANX_PROTECTION_NONE, &alpha, 0/*clamp*/, 0/*transform*/);
+
+         default_dwin[wid].width = width;
+         default_dwin[wid].height = height;
+
+         vc_dispmanx_update_submit_sync( update );
+
+         have_default_dwin[wid] = true;
+      }
+      return &default_dwin[wid];
+   } else
+      return (EGL_DISPMANX_WINDOW_T*)win;
+}
 
 
 uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType win)
 {
-   	ALOGD("%s dpy=%p win=%p",__FUNCTION__,dpy,win);
-   	return (uint32_t)win;
+   	//ALOGD("%s dpy=%p win=%p",__FUNCTION__,dpy,win);
+   	if(win){
+   	   	return (uint32_t)win;
+   	}else{
+		EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
+		vcos_assert(dwin);
+		vcos_assert(dwin->width < 1<<16); // sanity check
+		vcos_assert(dwin->height < 1<<16); // sanity check
+		return dwin->element;
+	}
 }
 
 
 void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
 {
-   //ALOGD("%s dpy=%p win=%p",__FUNCTION__,dpy,win);
+   ALOGD("%s dpy=%p win=%p swapchain_count=%p",__FUNCTION__,dpy,win,swapchain_count);
    if(win){
-   	ANativeWindow *nativeWindow = ( ANativeWindow*)(win);
-	nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, width);
-	nativeWindow->query(nativeWindow, NATIVE_WINDOW_HEIGHT, height);
+		ANativeWindow *nativeWindow = ( ANativeWindow*)(win);
+		nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, width);
+		nativeWindow->query(nativeWindow, NATIVE_WINDOW_HEIGHT, height);
+		nativeWindow->perform(nativeWindow, NATIVE_WINDOW_SET_BUFFER_COUNT, 2);
+		*swapchain_count=2;
 	}else
 	{
-		*height = 1080;
-		*width = 1920;
+		EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
+		vcos_assert(dwin);
+		vcos_assert(dwin->width < 1<<16); // sanity check
+		vcos_assert(dwin->height < 1<<16); // sanity check
+		*width = dwin->width;
+		*height = dwin->height;
+		*swapchain_count = 0;
 	}
 	//ALOGI("%s  dwin->width=%d  dwin->height=%d",__FUNCTION__, *width, *height);
 
@@ -469,4 +554,14 @@ void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
 
 
 uint32_t platform_get_color_format ( uint32_t format ) { return format; }
-void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window) {}
+void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window)
+{
+	//ALOGD("%s dpy=%p win=%p ",__FUNCTION__,dpy,window);
+	if(window){
+		ANativeWindow *nativeWindow = ( ANativeWindow*)(window);
+		ANativeWindowBuffer_t* buffer;
+		//nativeWindow->dequeueBuffer(nativeWindow, &buffer,-1);
+		//ALOGD("%s buffer=%p  ",__FUNCTION__,buffer);
+	
+	}
+}
