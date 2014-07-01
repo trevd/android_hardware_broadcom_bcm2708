@@ -31,13 +31,13 @@
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 
-#include <hardware/hardware.h>
+#include <hardware/hardware.h>;4067
 #include <hardware/gralloc.h>
 
 
 #include <gralloc/gralloc_priv.h>
 #include <gralloc/gralloc_brcm.h>
-#include <gralloc/bcm_host.h>
+#include <vmcs_host/vc_host.h>
 #include <gralloc/gr.h>
 
 #include <gralloc/dispmanx.h>
@@ -46,6 +46,7 @@
 
 struct gralloc_context_t {
     alloc_device_t  device;
+
     /* our private data here */
 };
 
@@ -169,7 +170,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
-    dispmanx_alloc(hnd);
+    //dispmanx_alloc(hnd);
     return 0;
 }
 
@@ -402,7 +403,8 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 
         dev->device.alloc   = gralloc_alloc;
         dev->device.free    = gralloc_free;
-		bcm_host_init();
+         
+		vc_host_open();
         *device = &dev->device.common;
         status = 0;
     } else {

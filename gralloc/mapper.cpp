@@ -66,7 +66,7 @@ static int gralloc_map(gralloc_module_t const* /*module*/,
         //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
     }
     *vaddr = (void*)hnd->base;
-     dispmanx_alloc(hnd);
+     //dispmanx_alloc(hnd);
     return 0;
 }
 

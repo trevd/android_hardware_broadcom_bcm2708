@@ -27,7 +27,6 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libgralloc.bcm2708 libvcos libvchosti
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
-	dispmanx.cpp \
 	mapper.cpp
 
 LOCAL_MODULE := gralloc.bcm2708
