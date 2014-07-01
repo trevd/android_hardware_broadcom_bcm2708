@@ -632,11 +632,11 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
                   0, &width, &height, &swapchain_count);
 			ALOGI("%s dpy=%d width=%d , height=%d EGL_CONFIG_MAX_HEIGHT=%d",__FUNCTION__,dpy,width,height,EGL_CONFIG_MAX_HEIGHT);
             if (swapchain_count > 0)
-               num_buffers = 2;
+               num_buffers = 3;
             else
             {
                if (khrn_options.double_buffer)
-                  num_buffers = 2;
+                  num_buffers = 4;
             }
 			//width = 1920;
 			//height= 2160;
@@ -2268,7 +2268,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
 
-   ALOGD("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
+   //ALOGD("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
@@ -2278,20 +2278,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
       surface = client_egl_get_surface(thread, process, surf);
 
-      //ALOGD("eglSwapBuffers get surface %x",(int)surface);
+      //ALOGD("eglSwapBuffers get surface %p surface->name=%p buffers=%p",(int)surface,surface->name,surface->buffers);
 
       if (surface) {
 
-#if !(EGL_KHR_lock_surface)
-         /* Surface to be displayed must be bound to current context and API */
-         /* This check is disabled if we have the EGL_KHR_lock_surface extension */
-         if (thread->bound_api == EGL_OPENGL_ES_API && surface != thread->opengl.draw && surface != thread->opengl.read
-          || thread->bound_api == EGL_OPENVG_API    && surface != thread->openvg.draw) {
-            thread->error = EGL_BAD_SURFACE;
-         } else
-#endif
-         {
-
+         
             if (surface->type == WINDOW) {
                uint32_t width, height, swapchain_count;
 
@@ -2320,8 +2311,8 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
                   surface->height = height;
                }
 
-               ALOGD("eglSwapBuffers comparison: %d %d, %d %d",
-                        surface->base_height , surface->base_width, surface->height, surface->width);
+               //ALOGD("eglSwapBuffers comparison: %d %d, %d %d",
+               //         surface->base_height , surface->base_width, surface->height, surface->width);
 
                /* TODO: raise EGL_BAD_ALLOC if we try to enlarge window and then run out of memory
 
@@ -2331,11 +2322,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
                // We don't call flush_current_api() here because it's only relevant
                // for pixmap surfaces (eglIntSwapBuffers takes care of flushing on
                // the server side).
-
+			//	ALOGD("%s Pre platform_surface_update surface=%p surface->internal_handle=%p",__FUNCTION__,surface,surface->internal_handle);
                platform_surface_update(surface->internal_handle);
-
+			//ALOGD("%s Post platform_surface_update surface=%p surface->internal_handle=%p",__FUNCTION__,surface,surface->internal_handle);
                //ALOGD("eglSwapBuffers server call");
-
+			//ALOGD("%s platform_dequeue surface->internal_handle=%p surface->serverbuffer=%p",__FUNCTION__,surface->internal_handle,surface->serverbuffer);
                RPC_CALL6(eglIntSwapBuffers_impl,
                      thread,
                      EGLINTSWAPBUFFERS_ID,
@@ -2350,12 +2341,12 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
 
                CLIENT_UNLOCK();
+               //ALOGD("%s platform_dequeue dpy=%p surface->win=%p",__FUNCTION__,dpy,surface->win);
                platform_dequeue(dpy, surface->win);
                CLIENT_LOCK();
 
 
             }
-         }
       }
 
       result = (thread->error == EGL_SUCCESS);
@@ -2364,7 +2355,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
    else
       result = EGL_FALSE;
 
- //  ALOGD("eglSwapBuffers end");
+   // ALOGD("eglSwapBuffers end result=%d %d",result,EGL_FALSE);
 
    return result;
 
