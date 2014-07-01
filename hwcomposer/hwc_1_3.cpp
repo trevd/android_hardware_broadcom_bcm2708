@@ -27,7 +27,7 @@
 
 #include <EGL/egl.h>
 
-#include <gralloc/bcm_host.h>
+#include <vmcs_host/vc_host.h>
 #include <gralloc/gralloc_priv.h>
 #include <gralloc/gralloc_brcm.h>
 #include <gralloc/dispmanx.h>
