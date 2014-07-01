@@ -29,14 +29,17 @@
 
 #include <gralloc/bcm_host.h>
 #include <gralloc/gralloc_priv.h>
+#include <gralloc/gralloc_brcm.h>
+#include <gralloc/dispmanx.h>
 
 #define HWC_DBG 1
 #define VSYNC_DEBUG 1
 #define BLANK_DEBUG 1
 #ifndef ALIGN_UP
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
-#endif
 
+#endif
+#define ESUCCESS 0
 enum HWCCompositionType {
     HWC_USE_GPU = HWC_FRAMEBUFFER, // This layer is to be handled by
                                    // Surfaceflinger
@@ -71,8 +74,11 @@ struct VsyncState {
     bool enable;
     bool fakevsync;
 };
-struct hwc_context_t {
+struct bcm2708_hwc_composer_device_1_t {
     hwc_composer_device_1_t device;
+    const private_module_t  *gralloc_module;
+    alloc_device_t          *alloc_device;
+    const gralloc_private_handle_t* gralloc_handle ; 
      const hwc_procs_t* proc;
      DisplayAttributes dpyAttr[HWC_NUM_DISPLAY_TYPES];
      VsyncState vstate;
@@ -149,10 +155,21 @@ static void dump_layer(hwc_layer_1_t const* l)
 }
 
 
-static int init_context(hwc_context_t *ctx)
+static int bcm2708_hwc_device_open(bcm2708_hwc_composer_device_1_t *dev)
 {
     struct fb_fix_screeninfo finfo;
     struct fb_var_screeninfo info;
+	int return_value = ESUCCESS ;
+	if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, (const struct hw_module_t **)&dev->gralloc_module)) {
+        ALOGE("failed to get gralloc hw module");
+        return_value = -EINVAL;
+        
+    }
+
+    if (gralloc_open((const hw_module_t *)dev->gralloc_module, &dev->alloc_device)) {
+        ALOGE("failed to open gralloc");
+        return_value = -EINVAL;
+    }
 
     int fb_fd = open("/dev/graphics/fb0", O_RDWR);
      if (ioctl(fb_fd, FBIOGET_VSCREENINFO, &info) == -1)
@@ -174,23 +191,28 @@ static int init_context(hwc_context_t *ctx)
     if (finfo.smem_len <= 0)
         return -errno;
 
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].fd = fb_fd;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].fd = fb_fd;
     //xres, yres may not be 32 aligned
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].stride = finfo.line_length /(info.xres/8);
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].xres = info.xres;
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].yres = info.yres;
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].xdpi = xdpi;
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].ydpi = ydpi;
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].vsync_period = 1000000000l / fps;
-
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].stride = finfo.line_length /(info.xres/8);
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].xres = info.xres;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].yres = info.yres;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].xdpi = xdpi;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].ydpi = ydpi;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].vsync_period = 1000000000l / fps;
+    
+   // size_t bpr = ( info.width*4 + (4-1)) & ~(4-1);
+    //int size = bpr * info.height;
+    //private_handle_t* hnd = new private_handle_t(fb_fd, size,  private_handle_t::PRIV_FLAGS_HW_COMPOSER);
+		//dispmanx_alloc(hnd); 
+	//	dev->gralloc_handle = hnd->brcm_handle;
     //Unblank primary on first boot
     //if(ioctl(fb_fd, FBIOBLANK,FB_BLANK_UNBLANK) < 0) {
     //    ALOGE("%s: Failed to unblank display", __FUNCTION__);
     //    return -errno;
     //}
-    ctx->dpyAttr[HWC_DISPLAY_PRIMARY].isActive = true;
-	ctx->vstate.enable = true;
-    ctx->vstate.fakevsync = true;
+    dev->dpyAttr[HWC_DISPLAY_PRIMARY].isActive = true;
+	dev->vstate.enable = true;
+    dev->vstate.fakevsync = true;
     return 0;
 
     
@@ -245,7 +267,7 @@ int hwc_getDisplayConfigs(struct hwc_composer_device_1* dev, int disp,
         uint32_t* configs, size_t* numConfigs) {
    ALOGI("%s",__FUNCTION__);
     int ret = 0;
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     //in 1.1 there is no way to choose a config, report as config id # 0
     //This config is passed to getDisplayAttributes. Ignore for now.
     switch(disp) {
@@ -273,7 +295,7 @@ static int hwc_eventControl(struct hwc_composer_device_1* dev, int dpy,
 {
 	ALOGI("%s event=%d",__FUNCTION__,event);
 	    int ret = 0;
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     //if(!ctx->dpyAttr[dpy].isActive) {
     //    ALOGE("Display is blanked - Cannot %s vsync",
     //          enable ? "enable" : "disable");
@@ -300,7 +322,7 @@ static void hwc_registerProcs(struct hwc_composer_device_1* dev,
                               hwc_procs_t const* procs)
 {
 	ALOGI("%s",__FUNCTION__);
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     if(!ctx) {
         ALOGE("%s: Invalid context", __FUNCTION__);
         return;
@@ -311,7 +333,7 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
 {
 
 
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
 
    
     int ret = 0;
@@ -344,23 +366,24 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int dpy, int blank)
 }
 
 static void* hwc_get_frame_data(const int32_t pitch, const int32_t height) {
-	ALOGI("%s",__FUNCTION__);
+	ALOGI("%s pitch=%d height=%d",__FUNCTION__,pitch , height);
     void* dst = malloc(pitch * height);
     memset(dst, 0, sizeof(dst));
     return dst;
 }
 
 static void hwc_set_frame_data(void *frame, hwc_layer_1_t *layer) {
-	ALOGI("%s",__FUNCTION__);
+	ALOGD("%s frame=%p layer=%p",__FUNCTION__,frame,layer);
     int dstpitch = ALIGN_UP(layer->displayFrame.right - layer->displayFrame.left*2, 32);
     int srcpitch = ALIGN_UP(layer->sourceCrop.right - layer->sourceCrop.left*2, 32);
     int y;
     int h = layer->displayFrame.bottom - layer->displayFrame.top;
-	for (y = 0; y < h; y++) { 
+    ALOGD("%s layer->displayFrame.bottom=%d layer->displayFrame.top=%d",__FUNCTION__,layer->displayFrame.bottom ,layer->displayFrame.top);
+	/*for (y = 0; y < h; y++) { 
 		uint8_t *src = (uint8_t *)layer->handle + srcpitch * y;
 		uint8_t *dst = (uint8_t *)frame + dstpitch * y;
 		memcpy(dst, src, dstpitch); 
-	}
+	}*/
 	
 }
 
@@ -387,7 +410,7 @@ static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_l
 	int srcwidth = layer->sourceCrop.right - layer->sourceCrop.left;
 	int srcheight = layer->sourceCrop.bottom - layer->sourceCrop.top;
 
-    struct hwc_context_t* device_context = (struct hwc_context_t*)dev;
+    struct bcm2708_hwc_composer_device_1_t* device_context = (struct bcm2708_hwc_composer_device_1_t*)dev;
     int dfpitch = ALIGN_UP(dfwidth*2, 32);
 	
 	vc_dispmanx_rect_set( &dst_rect, layer->displayFrame.left, layer->displayFrame.top, dfwidth, dfheight );
@@ -439,7 +462,7 @@ static void hwc_actually_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_l
 static void hwc_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t *layer){
 	ALOGI("%s",__FUNCTION__);
 	if(layer->compositionType == HWC_OVERLAY){
-		hwc_actually_do_stuff_with_layer(dev, layer);
+	//	hwc_actually_do_stuff_with_layer(dev, layer);
 	}
 
 }
@@ -447,16 +470,17 @@ static void hwc_do_stuff_with_layer(hwc_composer_device_1_t *dev, hwc_layer_1_t 
 static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
                        hwc_display_contents_1_t** displays)
 {
-	ALOGI("%s",__FUNCTION__);
+	ALOGI("%s numDisplays=%d",__FUNCTION__,numDisplays);
     for (int32_t i = numDisplays - 1; i >= 0; i--) {
         hwc_display_contents_1_t *list = displays[i];
-		if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
+        if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
+			ALOGD("%s EGLDisplay dpy=%p sur=%p",__FUNCTION__,list->dpy,list->sur);
 			for (size_t i=0 ; i<list->numHwLayers ; i++) {
 				dump_layer(&list->hwLayers[i]);
 				hwc_get_rd_layer(&list->hwLayers[i], lr);
 				if(!hwc_can_render_layer(lr->format)){
 					if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
-					list->hwLayers[i].compositionType = HWC_OVERLAY;
+					list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
 				}else{
 					if(HWC_DBG)	ALOGD("Layer %d = NOT OVERLAY!", i);
 					list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
@@ -470,7 +494,7 @@ int hwc_getDisplayAttributes(struct hwc_composer_device_1* dev, int disp,
         uint32_t config, const uint32_t* attributes, int32_t* values) {
 	ALOGI("%s",__FUNCTION__);
    
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     //If hotpluggable displays are inactive return error
     //if(disp == HWC_DISPLAY_EXTERNAL && !ctx->dpyAttr[disp].connected) {
     //    return -1;
@@ -527,7 +551,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
 
 	  int ret = 0;
 	const int dpy = HWC_DISPLAY_PRIMARY;
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     for (uint32_t i = 0; i < numDisplays; i++) {
         hwc_display_contents_1_t* list = displays[i];
             for (size_t i=0 ; i<list->numHwLayers ; i++) {
@@ -540,8 +564,8 @@ static int hwc_set(hwc_composer_device_1 *dev,
 			}
 		}
 		
-	ALOGI("%s EGLDisplay dpy=%p sur=%p",__FUNCTION__,(EGLDisplay)list->dpy,(EGLSurface)list->sur);
-		EGLBoolean success = eglSwapBuffers((EGLDisplay)list->dpy, (EGLSurface)list->sur);
+	ALOGI("%s EGLDisplay dpy=%p sur=%p cdpy=%p csur=%p",__FUNCTION__,(EGLDisplay)list->dpy,(EGLSurface)list->sur,eglGetCurrentDisplay(),eglGetCurrentSurface(EGL_DRAW));
+		EGLBoolean success = eglSwapBuffers(eglGetCurrentDisplay(),eglGetCurrentSurface(EGL_DRAW));
 		if (!success) {
 			if(HWC_DBG)	ALOGD("eglSwapBuffers errored.");
 			return HWC_EGL_ERROR;
@@ -549,9 +573,9 @@ static int hwc_set(hwc_composer_device_1 *dev,
 		
 		
 		
-		for (size_t i=0 ; i<list->numHwLayers ; i++) {
+	/*	for (size_t i=0 ; i<list->numHwLayers ; i++) {
 			hwc_do_stuff_with_layer(dev, &list->hwLayers[i]);
-		}
+		}*/
 	}
 	
 		
@@ -561,7 +585,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
 static int hwc_device_close(struct hw_device_t *dev)
 {
     ALOGI("%s",__FUNCTION__);
-    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
+    struct bcm2708_hwc_composer_device_1_t* ctx = (struct bcm2708_hwc_composer_device_1_t*)dev;
     if (ctx) {
         vc_dispmanx_resource_delete(ctx->resources[ctx->selectResource]);
         ctx->selectResource = !ctx->selectResource;
@@ -576,7 +600,7 @@ static int hwc_query(struct hwc_composer_device_1* dev,
                      int param, int* value)
 {
     ALOGI("%s",__FUNCTION__);
-    hwc_context_t* ctx = (hwc_context_t*)(dev);
+    bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     //private_module_t* m = reinterpret_cast<private_module_t*>(/
      //   ctx->mFbDev->common.module);
 
@@ -610,10 +634,10 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     int status = -EINVAL;
 ALOGI("%s",__FUNCTION__);
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
-        struct hwc_context_t *dev;
-        dev = (hwc_context_t*)malloc(sizeof(*dev));
+        struct bcm2708_hwc_composer_device_1_t *dev;
+        dev = (bcm2708_hwc_composer_device_1_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
-		init_context(dev) ;
+		bcm2708_hwc_device_open(dev) ;
         //Initialize hwc context
         //initContext(dev);
 
@@ -632,15 +656,16 @@ ALOGI("%s",__FUNCTION__);
         dev->device.getDisplayConfigs   = hwc_getDisplayConfigs;
         dev->device.getDisplayAttributes = hwc_getDisplayAttributes;
         *device = &dev->device.common;
-
-     
+        
+     //dev->disp = vc_dispmanx_display_open( 0 );
+     ALOGI("%s dev->disp =%p",__FUNCTION__,dev->disp );
         status = 0;
 		lr = (struct hwc_layer_rd *)malloc(sizeof(struct hwc_layer_rd));
-		/*bcm_host_init();
+		//bcm_host_init();
 		
-	    dev->disp = vc_dispmanx_display_open( 0 );
+	    
 	
-ALOGI("%s dev->info.input_format=%d",__FUNCTION__,dev->info.input_format);
+/*ALOGI("%s dev->info.input_format=%d",__FUNCTION__,dev->info.input_format);
         RECT_VARS_T *vars;
         vars = &gRectVars;
         dev->resources[0] = vc_dispmanx_resource_create(convertDisplayFormatToImageType(dev->info.input_format),
