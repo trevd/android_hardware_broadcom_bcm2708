@@ -620,9 +620,7 @@ VCHPRE_ int VCHPOST_ vc_dispmanx_display_set_background( DISPMANX_UPDATE_HANDLE_
  * Returns: VCHI error
  *
  ***********************************************************/
-VCHPRE_ int VCHPOST_
-vc_dispmanx_display_get_info (DISPMANX_DISPLAY_HANDLE_T display,
-                              DISPMANX_MODEINFO_T *pinfo)
+VCHPRE_ int VCHPOST_ vc_dispmanx_display_get_info (DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T *pinfo)
 {
    GET_INFO_DATA_T info;
    int32_t success;
@@ -1231,4 +1229,44 @@ static void *dispmanx_notify_func( void *arg ) {
       }
    }
    return 0;
+}
+
+
+int32_t vc_dispmanx_display_get_size( const uint16_t display_number,
+                                                    uint32_t *width,
+                                                    uint32_t *height)
+{
+   DISPMANX_DISPLAY_HANDLE_T display_handle = 0;
+   DISPMANX_MODEINFO_T mode_info;
+   int32_t success = -1;
+
+   if (display_handle == 0) {
+      // Display must be opened first.
+      display_handle = vc_dispmanx_display_open(display_number);
+      vcos_assert(display_handle);
+   }
+   if (display_handle) {
+      success = vc_dispmanx_display_get_info(display_handle, &mode_info);
+         
+      if( success >= 0 )
+      {
+         if( NULL != width )
+         {
+            *width = mode_info.width;
+         }
+         
+         if( NULL != height )
+         {
+            *height = mode_info.height;
+         }
+      }
+   }
+      
+   if ( display_handle )
+   {
+      vc_dispmanx_display_close(display_handle);
+      display_handle = 0;
+   }
+
+   return success;
 }

@@ -16,9 +16,15 @@ LOCAL_SRC_FILES := \
 	vc_vchi_tvservice.c \
 	vc_vchi_cecservice.c \
 	vc_vchi_dispmanx.c \
-	vc_service_common.c
+	vc_service_common.c \
+	vc_host.c
 
-LOCAL_SHARED_LIBRARIES := libvchiq_arm libvcos
+ifeq ($(strip $(TARGET_LOG_VIDEOCORE)),true)
+$(info VIDEOCORE LOGGING ENABLED)
+LOCAL_CFLAGS += -LOG_NDEBUG=1
+endif
+
+LOCAL_SHARED_LIBRARIES := libvchiq_arm libvcos liblog
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
