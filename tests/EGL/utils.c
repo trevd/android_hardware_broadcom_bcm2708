@@ -28,8 +28,8 @@
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 #include "utils.h"
-
-#include  <gralloc/bcm_host.h>
+#include <vmcs_host/vc_host.h>
+#include <system/window.h>
 
 ///
 // CreateEGLContext()
@@ -198,7 +198,7 @@ GLboolean userInterrupt(ESContext *esContext)
 void ESUTIL_API esInitContext ( ESContext *esContext )
 {
 
-   bcm_host_init();
+   vc_host_open();
 
    if ( esContext != NULL )
    {
