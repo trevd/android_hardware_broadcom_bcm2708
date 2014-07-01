@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <gralloc/bcm_host.h>
+#include <vmcs_host/vc_host.h>
 
 #include <system/window.h>
 extern VCOS_LOG_CAT_T khrn_client_log;
