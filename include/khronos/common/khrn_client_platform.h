@@ -38,15 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * via vcos, but 'direct' has its own header and types, which is why
  * the indirection is required.
  */
-#if defined(ABSTRACT_PLATFORM)
-#include <khronos/common/abstract/khrn_client_platform_filler_abstract.h>
-#elif defined(RPC_DIRECT) && !defined(RPC_LIBRARY) && !defined(RPC_DIRECT_MULTI)
-#include <khronos/common/direct/khrn_client_platform_filler_direct.h>
-#elif defined(KHRN_VCOS_VCHIQ)
-#include <khronos/common/vcos_vchiq/khrn_client_platform_filler_vcos_vchiq.h>
-#else
 #include <khronos/common/vcos/khrn_client_platform_filler_vcos.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,22 +81,12 @@ extern void *khrn_platform_malloc(size_t size, const char *desc);
 
 /*
    void khrn_platform_free(void *v)
-
-   Preconditions:
-
+   
+   Preconditions: 
    v is a valid pointer returned from khrn_platform_malloc
-
-   Postconditions:
-
-   v is freed
-
-   Invariants preserved:
-
-   -
-
-   Invariants used:
-
-   -
+   
+   Postconditions: v is freed
+   
 */
 extern void khrn_platform_free(void *v);
 
@@ -132,59 +114,6 @@ extern uint64_t khronos_platform_get_process_id(void);
 */
 
 #define PLATFORM_WIN_NONE     ((uint32_t)0xffffffff)
-
-#ifdef EGL_SERVER_SMALLINT
-
-static INLINE EGLNativeWindowType platform_canonical_win(EGLNativeWindowType win)
-{
-   switch ((uintptr_t)win) {
-   case (uintptr_t)NATIVE_WINDOW_800_480:   return PACK_NATIVE_WINDOW(800, 480, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_640_480:   return PACK_NATIVE_WINDOW(640, 480, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_320_240:   return PACK_NATIVE_WINDOW(320, 240, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_240_320:   return PACK_NATIVE_WINDOW(240, 320, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_64_64:     return PACK_NATIVE_WINDOW(64, 64, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_400_480_A: return PACK_NATIVE_WINDOW(400, 480, 0, 2);
-   case (uintptr_t)NATIVE_WINDOW_400_480_B: return PACK_NATIVE_WINDOW(400, 480, 1, 2);
-   case (uintptr_t)NATIVE_WINDOW_512_512:   return PACK_NATIVE_WINDOW(512, 512, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_360_640:   return PACK_NATIVE_WINDOW(360, 640, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_640_360:   return PACK_NATIVE_WINDOW(640, 360, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_1280_720:  return PACK_NATIVE_WINDOW(1280, 720, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_1920_1080: return PACK_NATIVE_WINDOW(1920, 1080, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_480_320:   return PACK_NATIVE_WINDOW(480, 320, 0, 1);
-   case (uintptr_t)NATIVE_WINDOW_1680_1050: return PACK_NATIVE_WINDOW(1680, 1050, 0, 1);
-   default:                                 return win;
-   }
-}
-
-static INLINE uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win)
-{
-#ifdef ABSTRACT_PLATFORM
-   return (uint32_t)win;
-#else
-   return (uint32_t)(size_t)platform_canonical_win(win);
-#endif /* ABSTRACT_PLATFORM */
-}
-
-#ifndef ABSTRACT_PLATFORM
-static INLINE void platform_get_dimensions(EGLDisplay dpy,
-      EGLNativeWindowType win, uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
-{
-   win = platform_canonical_win(win);
-   *width = UNPACK_NATIVE_WINDOW_W(win);
-   *height = UNPACK_NATIVE_WINDOW_H(win);
-#ifdef KHRN_SIMPLE_MULTISAMPLE
-   *width *= 2;
-   *height *= 2;
-#endif
-   *swapchain_count = 0;
-}
-#else
-void platform_get_dimensions(EGLDisplay dpy,
-      EGLNativeWindowType win, uint32_t *width, uint32_t *height, uint32_t *swapchain_count);
-void platform_lock(void * opaque_buffer_handle);
-void platform_unlock(void * opaque_buffer_handle);
-#endif /* ABSTRACT_PLATFORM */
-#else
 
 /*
    uint32_t platform_get_handle(EGLNativeWindowType win)
@@ -223,7 +152,7 @@ extern uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win);
 */
 extern void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
       uint32_t *width, uint32_t *height, uint32_t *swapchain_count);
-#endif
+
 extern void platform_surface_update(uint32_t handle);
 
 /*
@@ -273,13 +202,13 @@ extern void platform_send_pixmap_completed(EGLNativePixmapType pixmap);
 
 extern bool platform_match_pixmap_api_support(EGLNativePixmapType pixmap, uint32_t api_support);
 
-#if EGL_BRCM_global_image && EGL_KHR_image
+//#if EGL_BRCM_global_image && EGL_KHR_image
 extern bool platform_use_global_image_as_egl_image(uint32_t id_0, uint32_t id_1, EGLNativePixmapType pixmap, EGLint *error);
 extern void platform_acquire_global_image(uint32_t id_0, uint32_t id_1);
 extern void platform_release_global_image(uint32_t id_0, uint32_t id_1);
 extern void platform_get_global_image_info(uint32_t id_0, uint32_t id_1,
    uint32_t *pixel_format, uint32_t *width, uint32_t *height);
-#endif
+//#endif
 
 /* Platform optimised versions of memcpy and memcmp */
 extern uint32_t platform_memcmp(const void * aLeft, const void * aRight, size_t aLen);
@@ -295,10 +224,7 @@ extern void platform_destroy_winhandle(void *a, uint32_t b);
 
 extern uint32_t platform_get_color_format ( uint32_t format );
 
-#if !defined(__SYMBIAN32__)
-// hack for now - we want prototypes
 extern void egl_gce_win_change_image(void);
-#endif
 
 #ifdef __cplusplus
 }
@@ -313,19 +239,5 @@ extern void khrn_platform_bind_pixmap_to_egl_image(EGLNativePixmapType pixmap, E
 extern void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image);
 extern uint32_t platform_get_color_format ( uint32_t format );
 extern void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window);
-#include <WF/wfc.h>
-typedef struct
-{
-   WFCDevice device;
-   WFCContext context;
-   WFCSource source;
-   WFCint src_x, src_y, src_width, src_height;
-   WFCint dest_width, dest_height;
-   uint32_t stop_bouncing;
-   uint32_t num_of_elements;
-   WFCElement *element;
-} WFC_BOUNCE_DATA_T;
-
-void *platform_wfc_bounce_thread(void *param);
 
 #endif // KHRN_CLIENT_PLATFORM_H
