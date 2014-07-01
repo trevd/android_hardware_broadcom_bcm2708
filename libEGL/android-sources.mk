@@ -12,7 +12,7 @@ LOCAL_SRC_FILES := common/khrn_client.c \
 					common/khrn_int_image.c \
 					common/khrn_int_util.c \
 					common/khrn_options.c \
-					common/khrn_client_platform_linux.c \
+					common/khrn_client_platform_android_vchiq.c \
 					common/khrn_client_rpc_linux.c \
 					egl/egl_client.c \
 					egl/egl_client_config.c \
