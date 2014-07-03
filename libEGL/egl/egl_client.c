@@ -435,24 +435,13 @@ EGLAPI const char EGLAPIENTRY * eglQueryString(EGLDisplay dpy, EGLint name)
       case EGL_EXTENSIONS:
          //TODO: this list isn't quite correct
          result = ""
-#if EGL_KHR_image
             "EGL_KHR_image EGL_KHR_image_base EGL_KHR_image_pixmap EGL_KHR_vg_parent_image EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image "
-#endif
-#if EGL_KHR_lock_surface
             "EGL_KHR_lock_surface "
-#endif
-#if EGL_ANDROID_swap_rectangle
             "EGL_ANDROID_swap_rectangle "
-#endif
-#ifdef ANDROID
             "EGL_ANDROID_image_native_buffer "
-#endif
-#ifdef ANDROID
-#ifdef EGL_KHR_fence_sync
+            "EGL_ANDROID_recordable "
             "EGL_KHR_fence_sync "
-#endif
-#endif
-            ;
+            "EGL_ANDROID_framebuffer_target ";
            ALOGI("%s EGL_EXTENSIONS[%d] result=%s",__FUNCTION__,name,result);
          break;
       case EGL_VENDOR:
@@ -596,7 +585,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLSurface result;
-	//ALOGI("%s dpy=0x%x config=%p,win=%d[%p] attrib_list=%p",__FUNCTION__,(dpy,config,win,win,attrib_list);
+	ALOGI("%s dpy=0x%x config=%p,win=%d[%p] attrib_list=%p",__FUNCTION__,dpy,config,win,win,attrib_list);
    //vcos_log_trace("eglCreateWindowSurface for window %p", win);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
@@ -604,7 +593,7 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
       uint32_t handle = platform_get_handle(dpy, win);
 		ALOGI("%s handle=%d[0x%x] dpy=%d win=%p",__FUNCTION__,handle,handle,dpy, win);
       if ((int)(size_t)config < 1 || (int)(size_t)config > EGL_MAX_CONFIGS) {
-		  ALOGI("%s EGL_BAD_CONFIG result=EGL_NO_SURFACE",__FUNCTION__);
+		  ALOGI("%s EGL_BAD_CONFIG config=%d result=EGL_NO_SURFACE",__FUNCTION__,config);
          thread->error = EGL_BAD_CONFIG;
          result = EGL_NO_SURFACE;
       } else if (handle == PLATFORM_WIN_NONE) {
@@ -624,12 +613,12 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy, EGLConfig c
          } else {
             EGL_SURFACE_T *surface;
 
-            uint32_t width, height;
+            int32_t width = 0; 
+            int32_t height = 0; 
             uint32_t num_buffers = 2;
             uint32_t swapchain_count;
 
-            platform_get_dimensions(dpy,
-                  0, &width, &height, &swapchain_count);
+            platform_get_dimensions(dpy, win, &width, &height, &swapchain_count);
 			ALOGI("%s dpy=%d width=%d , height=%d EGL_CONFIG_MAX_HEIGHT=%d",__FUNCTION__,dpy,width,height,EGL_CONFIG_MAX_HEIGHT);
             if (swapchain_count > 0)
                num_buffers = 3;
