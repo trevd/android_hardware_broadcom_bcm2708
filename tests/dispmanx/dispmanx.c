@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // A simple demo using dispmanx to display an overlay
 #define LOG_TAG "DISPMANX-TEST"
-#define NDEBUG 1
+#define LOG_NDEBUG 0
 #include <utils/Log.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,6 +163,8 @@ int main(void)
     ret = vc_dispmanx_display_close( vars->display );
     assert( ret == 0 );
 
+	ALOGV( "Test Complete\n" );
+    printf( "Test Complete\n" );
     return 0;
 }
 

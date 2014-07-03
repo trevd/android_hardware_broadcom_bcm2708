@@ -19,9 +19,9 @@ LOCAL_SRC_FILES := \
 	vc_service_common.c \
 	vc_host.c
 
-ifeq ($(strip $(TARGET_LOG_VIDEOCORE)),true)
+ifeq ($strip $(TARGET_LOG_VIDEOCORE)),true)
 $(info VIDEOCORE LOGGING ENABLED)
-LOCAL_CFLAGS += -LOG_NDEBUG=1
+LOCAL_CFLAGS += -DLOG_NDEBUG=0
 endif
 
 LOCAL_SHARED_LIBRARIES := libvchiq_arm libvcos liblog

@@ -135,7 +135,7 @@ extern uint64_t khronos_platform_get_process_id(void);
 extern uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win);
 
 /*
-   void platform_get_dimensions(EGLNativeWindowType win, uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
+   void platform_get_dimensions(EGLNativeWindowType win, int32_t *width, int32_t *height, uint32_t *swapchain_count)
 
    Implementation notes:
 
@@ -150,8 +150,8 @@ extern uint32_t platform_get_handle(EGLDisplay dpy, EGLNativeWindowType win);
 
    -
 */
-extern void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
-      uint32_t *width, uint32_t *height, uint32_t *swapchain_count);
+extern void platform_get_dimensions(EGLDisplay display, EGLNativeWindowType window,
+      int32_t *width, int32_t *height, uint32_t *swapchain_count);
 
 extern void platform_surface_update(uint32_t handle);
 

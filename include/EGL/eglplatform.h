@@ -84,8 +84,6 @@
         etc.
  */
 
-struct egl_native_pixmap_t;
-
 #include <vmcs_host/vc_dispmanx.h>
 typedef struct {
    DISPMANX_ELEMENT_HANDLE_T element;
@@ -93,9 +91,14 @@ typedef struct {
    int height;
 } EGL_DISPMANX_WINDOW_T;
 
-typedef struct ANativeWindow* EGLNativeWindowType;
+#include <android/native_window.h>
+
+struct egl_native_pixmap_t;
+
+typedef struct ANativeWindow*           EGLNativeWindowType;
 typedef struct egl_native_pixmap_t*     EGLNativePixmapType;
-typedef EGL_DISPMANX_WINDOW_T* EGLNativeDisplayType;
+typedef void*                           EGLNativeDisplayType;
+
 
 /* EGL 1.2 types, renamed for consistency in EGL 1.3 */
 typedef EGLNativeDisplayType NativeDisplayType;

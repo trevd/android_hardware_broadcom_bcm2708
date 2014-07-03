@@ -7,7 +7,11 @@ bcm2708_dirs := \
 		libgralloc \
 		libvchiq_arm \
 		libvchostif \
-		libvcos 
+		libvcos
+
+ifeq ($(strip $(TARGET_BCM2708_COMPILE_TEST)),true)
+bcm2708_dirs += tests
+endif
 
 
 include $(call all-named-subdir-makefiles,$(bcm2708_dirs))

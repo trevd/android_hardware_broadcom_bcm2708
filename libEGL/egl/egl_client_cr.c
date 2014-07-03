@@ -174,14 +174,14 @@ no error condition is raised in this case.
 EGLAPI EGLDisplay EGLAPIENTRY eglGetDisplay(EGLNativeDisplayType display_id)
 {
    
-   
-		//ALOGI("%s Returning display_id=0x%s",__FUNCTION__,display_id);
-	
+   	
    CLIENT_THREAD_STATE_T *thread = CLIENT_GET_CHECK_THREAD_STATE();
-   if (thread)
+   if (thread){
       thread->error = EGL_SUCCESS;
-
-   return khrn_platform_set_display_id(display_id);
+	}
+	EGLDisplay id = khrn_platform_set_display_id(display_id);
+	//ALOGI("%s Returning display_id=0x%s",__FUNCTION__,id);
+	return id;
 }
 
 

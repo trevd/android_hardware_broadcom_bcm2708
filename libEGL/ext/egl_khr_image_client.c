@@ -42,14 +42,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vcos/vcos.h>
 
-#if EGL_ANDROID_image_native_buffer
-#include <gralloc/gralloc_bcm2708.h>
-#endif
 
-#if defined(ANDROID) && defined(KHRN_BCG_ANDROID)
+#include <gralloc/gralloc_bcm2708.h>
+#include <utils/Log.h>
+
 #include <gralloc/gralloc_bcm2708.h>
 //#include <middleware/khronos/common/2708/khrn_prod_4.h>
-#endif
+
 
 static VCOS_LOG_CAT_T egl_khr_image_client_log = VCOS_LOG_INIT("egl_khr_image_client", VCOS_LOG_WARN);
 
@@ -60,7 +59,7 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
 
    CLIENT_LOCK();
 
-   vcos_log_info("eglCreateImageKHR: dpy %p ctx %p target %x buf %p\n",
+   ALOGD("eglCreateImageKHR: dpy %p ctx %p target %x buf %p\n",
                                       dpy, ctx, target, buffer);
 
    {
@@ -70,16 +69,8 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
          EGL_CONTEXT_T *context;
          bool ctx_error;
          if (target == EGL_NATIVE_PIXMAP_KHR
-#ifdef EGL_BRCM_image_wrap
-            || target == EGL_IMAGE_WRAP_BRCM
-#endif
-#ifdef EGL_BRCM_image_wrap_bcg
-            || target == EGL_IMAGE_WRAP_BRCM_BCG
-#endif
-#if EGL_ANDROID_image_native_buffer
             || target == EGL_NATIVE_BUFFER_ANDROID
             || target == EGL_IMAGE_BRCM_RAW_PIXELS
-#endif
             || target == EGL_IMAGE_BRCM_MULTIMEDIA
             || target == EGL_IMAGE_BRCM_MULTIMEDIA_Y
             || target == EGL_IMAGE_BRCM_MULTIMEDIA_U
@@ -105,11 +96,8 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
             if (target == EGL_NATIVE_PIXMAP_KHR) {
                buf[0] = 0; buf[1] = (uint32_t)(-1);
                platform_get_pixmap_server_handle((EGLNativePixmapType)buffer, buf);
-#if EGL_BRCM_global_image
                if ((buf[0] == 0) && (buf[1] == (uint32_t)(-1))) { /* allow either regular or global image server-side pixmaps */
-#else
-               if ((buf[0] == 0) || (buf[1] != (uint32_t)(-1))) { /* only allow regular server-side pixmaps */
-#endif
+
                   /* This is a client-side pixmap! TODO: implement these properly */
                   KHRN_IMAGE_WRAP_T image;
                   if (platform_get_pixmap_info((EGLNativePixmapType)buffer, &image))
@@ -174,8 +162,6 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
                   buf_error = true;
                }
 #endif
-#if EGL_ANDROID_image_native_buffer
-
             } else if (target == EGL_NATIVE_BUFFER_ANDROID) {
                gralloc_private_handle_t *gpriv = gralloc_private_handle_from_client_buffer(buffer);
                int res_type = gralloc_private_handle_get_res_type(gpriv);
@@ -208,9 +194,6 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
                else {
                   vcos_log_error("%s: unknown gralloc resource type %x", __FUNCTION__, res_type);
                }
-
-
-#endif
             } else {
                vcos_log_trace("%s:target type %x buffer %p handled on server", __FUNCTION__, target, buffer);
                buf[0] = (uint32_t)buffer;

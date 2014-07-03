@@ -82,7 +82,7 @@ void write_buffer_dispmanx(private_handle_t* handle)
 
 int dispmanx_alloc(private_handle_t* handle)
 {
-  	return 0; 
+
   	
   	
 	ALOGD("%s handle->brcm_handle=%p",__FUNCTION__,handle->brcm_handle);

@@ -164,9 +164,10 @@ bool egl_surface_check_attribs(
    )
 {
    ALOGI("%s",__FUNCTION__);
-   if (!attrib_list)
-      return true;
-
+	if (!attrib_list){
+		ALOGW("%s attrib_list is empty %p",__FUNCTION__,attrib_list);
+		return true;
+	}
    while (*attrib_list != EGL_NONE) {
       int name = *attrib_list++;
       int value = *attrib_list++;

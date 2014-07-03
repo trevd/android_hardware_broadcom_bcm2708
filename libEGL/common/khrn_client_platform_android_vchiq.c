@@ -53,7 +53,7 @@ static void send_bound_pixmaps(void);
 
 VCOS_STATUS_T khronos_platform_semaphore_create(PLATFORM_SEMAPHORE_T *sem, int name[3], int count)
 {
-   ALOGD("%s name[0]=%d name[1]=%d name[2]=%d count=%d",__FUNCTION__,name[0], name[1], name[2],count);
+   //ALOGD("%s name[0]=%d name[1]=%d name[2]=%d count=%d",__FUNCTION__,name[0], name[1], name[2],count);
    char buf[64];
    vcos_snprintf(buf,sizeof(buf),"KhanSemaphore%08x%08x%08x", name[0], name[1], name[2]);
    return vcos_named_semaphore_create(sem, buf, count);
@@ -192,7 +192,7 @@ bool platform_match_pixmap_api_support(EGLNativePixmapType pixmap, uint32_t api_
       (!(api_support & EGL_OPENVG_BIT) || (((uint32_t *)pixmap)[4] & EGL_PIXEL_FORMAT_RENDER_VG_BRCM));
 }
 
-#if EGL_BRCM_global_image && EGL_KHR_image
+
 
 bool platform_use_global_image_as_egl_image(uint32_t id_0, uint32_t id_1, EGLNativePixmapType pixmap, EGLint *error)
 {
@@ -227,7 +227,7 @@ void platform_get_global_image_info(uint32_t id_0, uint32_t id_1,
    if (height) { *height = width_height_pixel_format[1]; }
 }
 
-#endif
+
 
 void platform_client_lock(void)
 {
@@ -462,7 +462,7 @@ static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
          DISPMANX_MODEINFO_T info;
          vc_dispmanx_display_get_info(display, &info);
          int32_t dw = info.width, dh = info.height;
-
+		 ALOGD("%s wid=%d win=%p",__FUNCTION__,wid,win);
          DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( 0 );
          VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
          VC_RECT_T dst_rect;
@@ -515,53 +515,63 @@ static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
 
 uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType win)
 {
-   	//ALOGD("%s dpy=%p win=%p",__FUNCTION__,dpy,win);
-   	if(win){
+ 
+		errno = 0 ;
+   	   	ALOGD("%s dpy %p Win %p",__FUNCTION__,dpy,win);
    	   	return (uint32_t)win;
-   	}else{
-		EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
-		vcos_assert(dwin);
-		vcos_assert(dwin->width < 1<<16); // sanity check
-		vcos_assert(dwin->height < 1<<16); // sanity check
-		return dwin->element;
-	}
+   	
 }
 
 
-void platform_get_dimensions(EGLDisplay dpy, EGLNativeWindowType win,
-      uint32_t *width, uint32_t *height, uint32_t *swapchain_count)
+void platform_get_dimensions(EGLDisplay display, EGLNativeWindowType window,
+      int32_t *width, int32_t *height, uint32_t *swapchain_count)
 {
-   ALOGD("%s dpy=%p win=%p swapchain_count=%p",__FUNCTION__,dpy,win,swapchain_count);
-   if(win){
-		ANativeWindow *nativeWindow = ( ANativeWindow*)(win);
-		nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, width);
-		nativeWindow->query(nativeWindow, NATIVE_WINDOW_HEIGHT, height);
-		nativeWindow->perform(nativeWindow, NATIVE_WINDOW_SET_BUFFER_COUNT, 2);
-		*swapchain_count=2;
-	}else
-	{
-		EGL_DISPMANX_WINDOW_T *dwin = check_default(win);
-		vcos_assert(dwin);
-		vcos_assert(dwin->width < 1<<16); // sanity check
-		vcos_assert(dwin->height < 1<<16); // sanity check
-		*width = dwin->width;
-		*height = dwin->height;
-		*swapchain_count = 0;
+	errno = 0;
+	
+	// Do some sanity checks	
+	if(width == NULL){
+		errno = EINVAL;
+		ALOGE("%s Error Width %d : %s ",__FUNCTION__,errno,strerror(errno));
+		return ;
 	}
-	//ALOGI("%s  dwin->width=%d  dwin->height=%d",__FUNCTION__, *width, *height);
+	// set the width to zero
+	(*width) = 0;
+	
+	if(height == NULL){
+		errno = EINVAL;
+		ALOGE("%s Error Height %d : %s ",__FUNCTION__,errno,strerror(errno));
+		return ;
+	}
+	
+	// set height to zero
+	(*height) = 0;
+	
+	if(window == NULL){
+		errno = EINVAL;
+		ALOGE("%s Error Window %p %d : %s ",__FUNCTION__,window,errno,strerror(errno));
+		return ;	
+	}	
+	
+	void *window_ptr = window;
+	uint32_t* window_magic_ptr = window_ptr;
+	uint32_t window_magic = (*window_magic_ptr);
+	if(window_magic == ANDROID_NATIVE_WINDOW_MAGIC){
+		ALOGD("%s ANDROID_NATIVE_WINDOW_MAGIC FOUND window=%p 0x%x\n",__FUNCTION__,window,window_magic);
+		ANativeWindow *nativeWindow = window;
+		
+		nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, width);
+		ALOGD("%s NATIVE_WINDOW_WIDTH = %d ",__FUNCTION__,(*width));
+		
+		nativeWindow->query(nativeWindow, NATIVE_WINDOW_HEIGHT, height);
+		ALOGD("%s NATIVE_WINDOW_HEIGHT = %d ",__FUNCTION__,(*height));
+	
+	}else{
+		ALOGD("%s win=%p 0x%x\n",__FUNCTION__,window , window_magic);
+	}
 
 }
 
 
 uint32_t platform_get_color_format ( uint32_t format ) { return format; }
-void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window)
-{
-	//ALOGD("%s dpy=%p win=%p ",__FUNCTION__,dpy,window);
-	if(window){
-		ANativeWindow *nativeWindow = ( ANativeWindow*)(window);
-		ANativeWindowBuffer_t* buffer;
-		//nativeWindow->dequeueBuffer(nativeWindow, &buffer,-1);
-		//ALOGD("%s buffer=%p  ",__FUNCTION__,buffer);
-	
-	}
-}
+void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window){}
+	//ALOGD("%s dpy=%p win=%p ",__FUN}

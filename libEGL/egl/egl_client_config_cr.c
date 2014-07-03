@@ -25,7 +25,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #define LOG_TAG "egl_client_config_cr"
+
 #include <utils/Log.h>
+#include <cutils/properties.h>
 /*
    A FEATURES_T is a structure represented by a bit pattern
 
@@ -71,6 +73,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define FEATURES_UNPACK_COLOR(c)      (FEATURES_UNPACK_RED(c)+FEATURES_UNPACK_GREEN(c)+FEATURES_UNPACK_BLUE(c)+FEATURES_UNPACK_ALPHA(c))
 
+//static int eglDebugClient = 0;
+//#define ELOGD if(eglDebugClient)
+
 /*
    bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *use_green, bool *use_blue, bool *use_alpha)
 
@@ -107,7 +112,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *use_green, bool *use_blue, bool *use_alpha)
 {
-	ALOGV("%s attrib_list=%p use_red=%d  use_green=%d use_blue=%d use_alpha=%d",__FUNCTION__,attrib_list,(*use_red),(*use_green),(*use_blue),(*use_alpha));
+   //ALOGV("%s attrib_list=%p use_red=%d  use_green=%d use_blue=%d use_alpha=%d",__FUNCTION__,attrib_list,(*use_red),(*use_green),(*use_blue),(*use_alpha));
    if (!attrib_list)
       return true;
 
@@ -212,9 +217,7 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
          int valid_bits = EGL_WINDOW_BIT|EGL_PIXMAP_BIT|EGL_PBUFFER_BIT|
             EGL_MULTISAMPLE_RESOLVE_BOX_BIT|EGL_SWAP_BEHAVIOR_PRESERVED_BIT|
             EGL_VG_COLORSPACE_LINEAR_BIT|EGL_VG_ALPHA_FORMAT_PRE_BIT;
-#if EGL_KHR_lock_surface
          valid_bits |= EGL_LOCK_SURFACE_BIT_KHR|EGL_OPTIMAL_FORMAT_BIT_KHR;
-#endif
          if (value != EGL_DONT_CARE && (value & ~valid_bits))
             return false;
          break;
@@ -228,7 +231,6 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
       case EGL_TRANSPARENT_BLUE_VALUE:
          if (value != EGL_DONT_CARE && value < 0) return false;
          break;
-#if EGL_KHR_lock_surface
       case EGL_MATCH_FORMAT_KHR:
          switch (value) {
          case EGL_DONT_CARE:
@@ -242,46 +244,15 @@ bool egl_config_check_attribs(const EGLint *attrib_list, bool *use_red, bool *us
             return false;
          }
          break;
-#endif
-#if EGL_ANDROID_recordable
       case EGL_RECORDABLE_ANDROID:
-         switch (value) {
-         case EGL_DONT_CARE:
-         case EGL_TRUE:
-         case EGL_FALSE:
-            break;
-         default:
-            return false;
-         }
-         break;
-#endif
-//#if EGL_ANDROID_framebuffer_target
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
-         switch (value) {
-         case EGL_DONT_CARE:{
-			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_DONT_CARE[0x%x]",__FUNCTION__,value);
-			break ;
-		}
-         case EGL_TRUE:{
-			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_TRUE[0x%x]",__FUNCTION__,value);
-            break;
-		 }
-         case EGL_FALSE:{
-			//ALOGI("%s EGL_ANDROID_framebuffer_target = EGL_FALSE[0x%x]",__FUNCTION__,value);
-            break;
-         }
-         default:{
-			//ALOGI("%s EGL_ANDROID_framebuffer_target default case value=0x%x",__FUNCTION__,value);
+         if (value != EGL_DONT_CARE && value != EGL_FALSE && value != EGL_TRUE)
             return false;
-         }
-         }
          break;
-//#endif
       default:
          return false;
       }
    }
-
    return true;
 }
 
@@ -445,7 +416,6 @@ static bool less_than(int id0, int id1, bool use_red, bool use_green, bool use_b
 
 void egl_config_sort(int *ids, bool use_red, bool use_green, bool use_blue, bool use_alpha)
 {
-	////ALOGI("%s",__FUNCTION__);
    int i, j;
 
    for (i = 1; i < EGL_MAX_CONFIGS; i++)
@@ -608,15 +578,12 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
       return true;
    case EGL_SURFACE_TYPE:
       *value = (EGLint)(EGL_PBUFFER_BIT | EGL_PIXMAP_BIT | EGL_WINDOW_BIT | EGL_VG_COLORSPACE_LINEAR_BIT | EGL_VG_ALPHA_FORMAT_PRE_BIT | EGL_MULTISAMPLE_RESOLVE_BOX_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT);
-      
-#if EGL_KHR_lock_surface
       if (egl_config_is_lockable(id))
       {
          *value |= EGL_LOCK_SURFACE_BIT_KHR;
          if (egl_config_get_mapped_format(id) == egl_config_get_color_format(id))
             *value |= EGL_OPTIMAL_FORMAT_BIT_KHR;      /* Considered optimal if no format conversion needs doing. Currently all lockable surfaces are optimal */
       }
-#endif
 		//ALOGI("%s ConfigID=%d attrib=EGL_SURFACE_TYPE[0x%x] value=0x%x",__FUNCTION__,id,attrib,(*value));
       return true;
    case EGL_TRANSPARENT_TYPE:
@@ -635,7 +602,6 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
  		*value = 0;
        //ALOGI("%s ConfigID=%d attrib=EGL_TRANSPARENT_BLUE_VALUE[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
-#if EGL_KHR_lock_surface
    case EGL_MATCH_FORMAT_KHR:
       if (!egl_config_is_lockable(id))
          *value = EGL_NONE;
@@ -654,19 +620,10 @@ bool egl_config_get_attrib(int id, EGLint attrib, EGLint *value)
       }
       //ALOGI("%s ConfigID=%d attrib=EGL_MATCH_FORMAT_KHR[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
-#endif
-#if EGL_ANDROID_recordable
    case EGL_RECORDABLE_ANDROID:
-      *value = EGL_TRUE;
-      //ALOGI("%s ConfigID=%d attrib=EGL_RECORDABLE_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
-      return true;
-#endif
-//#if EGL_ANDROID_framebuffer_target
 	case EGL_FRAMEBUFFER_TARGET_ANDROID:
       *value = EGL_TRUE;
-      //ALOGI("%s ConfigID=%d attrib=EGL_FRAMEBUFFER_TARGET_ANDROID[0x%x] value=[0x%x]",__FUNCTION__,id,attrib,(*value));
       return true;
-//#endif
    default:
 	  //ALOGI("%s LEAVE RETURN FALSE id=%d attrib=0x%x value=0x%x",__FUNCTION__,id,attrib,(*value));
       return false;
@@ -760,12 +717,8 @@ bool egl_config_filter(int id, const EGLint *attrib_list)
       case EGL_MIN_SWAP_INTERVAL:
       case EGL_NATIVE_RENDERABLE:
       case EGL_TRANSPARENT_TYPE:
-#if EGL_ANDROID_recordable
       case EGL_RECORDABLE_ANDROID:
-#endif
-//#if EGL_ANDROID_framebuffer_target
       case EGL_FRAMEBUFFER_TARGET_ANDROID:
-//#endif
          if (value != EGL_DONT_CARE && value != actual_value)
             return false;
          break;

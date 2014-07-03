@@ -73,33 +73,34 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
 		return EGL_FALSE;
 	}
 
-   // Choose config
-   if ( !eglChooseConfig(display, attribList, &config, 1, &numConfigs) )
-   {
+	// Choose config
+	if ( !eglChooseConfig(display, attribList, &config, 1, &numConfigs) )
+	{
 	   ALOGE("%s eglChooseConfig Failed",__FUNCTION__);
-      return EGL_FALSE;
-   }
- ALOGI("%s eglChooseConfig config=%d",__FUNCTION__,config);
-   // Create a surface
-   surface = eglCreateWindowSurface(display, config, (EGLNativeWindowType)hWnd, NULL);
-   if ( surface == EGL_NO_SURFACE )
-   {
+	  return EGL_FALSE;
+	}
+	//ALOGI("%s eglChooseConfig display=%p config=%d hWnd=%p",__FUNCTION__,display,config,hWnd);
+	//printf("%s eglChooseConfig display=%p config=%d hWnd=%p",__FUNCTION__,display,config,hWnd);
+	// Create a surface
+	surface = eglCreateWindowSurface(display, config, (EGLNativeWindowType)hWnd, NULL);
+	if ( surface == EGL_NO_SURFACE )
+	{
 	   ALOGE("%s eglCreateWindowSurface==EGL_NO_SURFACE",__FUNCTION__);
-      return EGL_FALSE;
-   }
+	  return EGL_FALSE;
+	}
 
    // Create a GL context
    context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs );
    if ( context == EGL_NO_CONTEXT )
    {
-	    ALOGE("%s eglCreateContext==EGL_NO_CONTEXT",__FUNCTION__);
+	  //  ALOGE("%s eglCreateContext==EGL_NO_CONTEXT",__FUNCTION__);
       return EGL_FALSE;
    }   
    
    // Make the context current
    if ( !eglMakeCurrent(display, surface, surface, context) )
    {
-	   ALOGE("%s eglMakeCurrent Failed",__FUNCTION__);
+	   //ALOGE("%s eglMakeCurrent Failed",__FUNCTION__);
       return EGL_FALSE;
    }
    
@@ -130,7 +131,7 @@ EGLBoolean WinCreate(ESContext *esContext, const char *title)
    int display_height;
 
    // create an EGL window surface, passing context width/height
-   success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+   success = vc_dispmanx_display_get_size(0 /* LCD */, &display_width, &display_height);
    if ( success < 0 )
    {
       return EGL_FALSE;

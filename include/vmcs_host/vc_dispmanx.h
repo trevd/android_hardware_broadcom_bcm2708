@@ -32,7 +32,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vcos/vcos.h>
 #include <vctypes/vc_image_types.h>
-//#include "c_dispservice_x_defs.h"
 #include <vmcs_host/vc_dispmanx_types.h>
 #include <vchi/vchi.h>
 

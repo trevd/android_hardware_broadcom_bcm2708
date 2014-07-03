@@ -353,7 +353,7 @@ if(info.bits_per_pixel == 32) {
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
    module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
-    dispmanx_alloc(module->framebuffer);
+   // dispmanx_alloc(module->framebuffer);
 
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;

@@ -157,7 +157,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     intptr_t vaddr = intptr_t(m->framebuffer->base);
     private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
-
+	dispmanx_alloc(hnd);
     // find a free slot
     for (uint32_t i=0 ; i<numBuffers ; i++) {
         if ((bufferMask & (1LU<<i)) == 0) {
@@ -170,7 +170,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
-    //dispmanx_alloc(hnd);
+
     return 0;
 }
 
@@ -204,7 +204,9 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
         private_handle_t* hnd = new private_handle_t(fd, size, 0);
         gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
                 dev->common.module);
+        dispmanx_alloc(hnd);
         err = mapBuffer(module, hnd);
+        
         if (err == 0) {
             *pHandle = hnd;
         }
@@ -224,7 +226,7 @@ static int gralloc_alloc(alloc_device_t* dev,
     ALOGI("%s",__FUNCTION__);
     if (!pHandle || !pStride)
         return -EINVAL;
-
+    
     size_t size, stride;
 
     int align = 4;
@@ -326,6 +328,7 @@ static int gralloc_alloc(alloc_device_t* dev,
 		temph =  h;
 		stride = w;
 	}
+	
     int err =0;
      if (usage & GRALLOC_USAGE_HW_FB) {
         err = gralloc_alloc_framebuffer(dev, size, usage, pHandle);
