@@ -26,15 +26,17 @@
 static const int GRALLOC_PRIV_TYPE_MM_RESOURCE = 0;
 static const int GRALLOC_PRIV_TYPE_GL_RESOURCE = 1;
 
+enum {
+    GRALLOC_MODULE_PERFORM_CREATE_DISPMANX_WINDOW_HANDLE                = 0x80000002,
+    GRALLOC_MODULE_PERFORM_GET_DISPMANX_WINDOW_HANDLE                = 0x80000003,
+    GRALLOC_MODULE_PERFORM_GET_DISPMANX_ELEMENT               = 0x80000004
+  
+};
+
 static const int GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE = 0;
 
-typedef struct gralloc_private_handle_t {
-
+typedef struct dispmanx_module_t {
     EGLImageKHR egl_image;
-    DISPMANX_DISPLAY_HANDLE_T dispman_display;
-    DISPMANX_RESOURCE_HANDLE_T dispman_resource;
-    DISPMANX_ELEMENT_HANDLE_T dispman_element;
-	DISPMANX_UPDATE_HANDLE_T dispman_update;
     EGL_DISPMANX_WINDOW_T window;
     //GRALLOC_PRIV_TYPE_GL_RESOURCE or GRALLOC_PRIV_TYPE_MM_RESOURCE
     int res_type;
@@ -42,6 +44,6 @@ typedef struct gralloc_private_handle_t {
     int stride;
     int pixelformat;
 
-} gralloc_private_handle_t;
+} dispmanx_module_t;
 
 #endif /* GRALLOC_BRCM_DEF_H_ */

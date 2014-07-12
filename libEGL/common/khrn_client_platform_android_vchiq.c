@@ -25,7 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #define VCOS_LOG_CATEGORY (&khrn_client_log)
-#define LOG_TAG "khrn_client_platform_linux"
+#define LOG_TAG "khrn_client_platform_android_vchiq"
 #include <utils/Log.h>
 #include <khronos/common/khrn_client_platform.h>
 #include <khronos/common/khrn_client.h>
@@ -267,7 +267,7 @@ void platform_destroy_winhandle(void *a, uint32_t b)
 
 void platform_surface_update(uint32_t handle)
 {
-	//	ALOGI("%s handle=%p",__FUNCTION__,handle);
+		ALOGI("%s handle=%p",__FUNCTION__,handle);
    /*
    XXX This seems as good a place as any to do the client side pixmap hack.
    (called from eglSwapBuffers)
@@ -431,97 +431,66 @@ void khrn_platform_unbind_pixmap_from_egl_image(EGLImageKHR egl_image)
    }
 }
 
-#define NUM_WIN 6
-
-static bool have_default_dwin[NUM_WIN];
-static EGL_DISPMANX_WINDOW_T default_dwin[NUM_WIN];
-
-static EGL_DISPMANX_WINDOW_T *check_default(EGLNativeWindowType win)
-{
-   int wid = (int)win;
-   ALOGD("%s wid=%d win=%p",__FUNCTION__,wid,win);
-   if(wid>-NUM_WIN && wid <=0) {
-      /*
-       * Special identifiers indicating the default windows. Either use the
-       * one we've got or create a new one
-       * simple hack for VMCSX_VC4_1.0 release to demonstrate concurrent running of apps under linux
-
-       * win ==  0 => full screen window on display 0
-       * win == -1 => 1/4 screen top left window on display 0
-       * win == -2 => 1/4 screen top right window on display 0
-       * win == -3 => 1/4 screen bottom left window on display 0
-       * win == -4 => 1/4 screen bottom right window on display 0
-       * win == -5 => full screen window on display 2
-
-       * it is expected that Open WFC will provide a proper mechanism in the near future
-       */
-      wid = -wid;
-
-      if (!have_default_dwin[wid]) {
-         DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open( (wid == 5) ? 2 : 0 );
-         DISPMANX_MODEINFO_T info;
-         vc_dispmanx_display_get_info(display, &info);
-         int32_t dw = info.width, dh = info.height;
-		 ALOGD("%s wid=%d win=%p",__FUNCTION__,wid,win);
-         DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start( 0 );
-         VC_DISPMANX_ALPHA_T alpha = {DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0};
-         VC_RECT_T dst_rect;
-         VC_RECT_T src_rect;
-
-         int x, y, width, height, layer;
-
-         switch(wid)
-         {
-         case 0:
-            x = 0;    y = 0;    width = dw;   height = dh;   layer = 0; break;
-         case 1:
-            x = 0;    y = 0;    width = dw/2; height = dh/2; layer = 0; break;
-         case 2:
-            x = dw/2; y = 0;    width = dw/2; height = dh/2; layer = 0; break;
-         case 3:
-            x = 0;    y = dh/2; width = dw/2; height = dh/2; layer = 0; break;
-         case 4:
-            x = dw/2; y = dh/2; width = dw/2; height = dh/2; layer = 0; break;
-         case 5:
-            x = 0;    y = 0;    width = dw;   height = dh;   layer = 0; break;
-         }
-
-         src_rect.x = 0;
-         src_rect.y = 0;
-         src_rect.width = width << 16;
-         src_rect.height = height << 16;
-
-         dst_rect.x = x;
-         dst_rect.y = y;
-         dst_rect.width = width;
-         dst_rect.height = height;
-
-         default_dwin[wid].element = vc_dispmanx_element_add ( update, display,
-            layer, &dst_rect, 0/*src*/,
-            &src_rect, DISPMANX_PROTECTION_NONE, &alpha, 0/*clamp*/, 0/*transform*/);
-
-         default_dwin[wid].width = width;
-         default_dwin[wid].height = height;
-
-         vc_dispmanx_update_submit_sync( update );
-
-         have_default_dwin[wid] = true;
-      }
-      return &default_dwin[wid];
-   } else
-      return (EGL_DISPMANX_WINDOW_T*)win;
-}
 
 
-uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType win)
+
+
+uint32_t platform_get_handle(EGLDisplay dpy,EGLNativeWindowType window)
 {
  
 		errno = 0 ;
-   	   	ALOGD("%s dpy %p Win %p",__FUNCTION__,dpy,win);
-   	   	return (uint32_t)win;
-   	
+		// Do we have a window?
+		if(window == NULL){
+			errno = EINVAL;
+			ALOGE("%s Error Window %p %d : %s ",__FUNCTION__,window,errno,strerror(errno));
+			return NULL;	
+		}	
+		void *window_ptr = window;
+		uint32_t* window_magic_ptr = window_ptr;
+		uint32_t window_magic = (*window_magic_ptr);
+		uint32_t return_value = 0;
+		if(window_magic != ANDROID_NATIVE_WINDOW_MAGIC){
+			ALOGI("%s win=%p is not a ANativeWindow 0x%x\n",__FUNCTION__,window , window_magic);
+			ALOGI("%s Trying EGL_DISPMANX_WINDOW_T \n",__FUNCTION__);
+			EGL_DISPMANX_WINDOW_T* native_window = window_ptr;
+			return_value = (uint32_t) android_get_dispmanx_element();
+		}else if(window_magic == ANDROID_NATIVE_WINDOW_MAGIC){
+			ALOGI("%s ANativeWindow Found win=%p 0x%x\n",__FUNCTION__,window , window_magic);
+			return_value = (uint32_t) android_get_dispmanx_element();
+			//return_value= (uint32_t)window;
+		}
+		return return_value;
 }
 
+static void android_native_window_get_dimensions(ANativeWindow *native_window,int32_t *width, int32_t *height){
+		  
+
+	
+	// Query ALL THE THINGS!
+	native_window->query(native_window, NATIVE_WINDOW_WIDTH, width);
+	ALOGD("%s NATIVE_WINDOW_WIDTH = %d ",__FUNCTION__,(*width));
+	
+	native_window->query(native_window, NATIVE_WINDOW_HEIGHT, height);
+	ALOGD("%s NATIVE_WINDOW_HEIGHT = %d ",__FUNCTION__,(*height));
+
+	int minbuffers = 0 ;
+	native_window->query(native_window, NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, &minbuffers);
+	ALOGD("%s  NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS = %d ",__FUNCTION__,minbuffers);
+	
+	int composer_queues = 0 ;
+	native_window->query(native_window,  NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER, &composer_queues);
+	ALOGD("%s   NATIVE_WINDOW_QUEUES_TO_WINDOW_COMPOSER = %d ",__FUNCTION__,composer_queues);
+	
+	
+	ALOGD("%s native_window->common=%p\n",__FUNCTION__,native_window->common);
+	if(native_window->common.magic == NULL){
+		ALOGE("%s native_window->common.magic not set\n",__FUNCTION__);
+	}else{
+		ALOGD("%s native_window->common.magic=%p\n",__FUNCTION__,native_window->common.magic);
+	}
+	
+	 
+}
 
 void platform_get_dimensions(EGLDisplay display, EGLNativeWindowType window,
       int32_t *width, int32_t *height, uint32_t *swapchain_count)
@@ -529,49 +498,79 @@ void platform_get_dimensions(EGLDisplay display, EGLNativeWindowType window,
 	errno = 0;
 	
 	// Do some sanity checks	
+	
+	// Make sure we have a valid pointer to store
+	// the width in
 	if(width == NULL){
 		errno = EINVAL;
 		ALOGE("%s Error Width %d : %s ",__FUNCTION__,errno,strerror(errno));
 		return ;
 	}
-	// set the width to zero
+	// set width to zero now we know the
+	// pointer is valid
 	(*width) = 0;
 	
+	// Make sure we have a valid pointer to store the height in
 	if(height == NULL){
 		errno = EINVAL;
 		ALOGE("%s Error Height %d : %s ",__FUNCTION__,errno,strerror(errno));
 		return ;
 	}
 	
-	// set height to zero
+	// set height to zero now we know the
+	// pointer is valid
 	(*height) = 0;
+
+	// Make sure we have a valid pointer to store the height in
+	if(swapchain_count == NULL){
+		errno = EINVAL;
+		ALOGE("%s Error swapchain_count %d : %s ",__FUNCTION__,errno,strerror(errno));
+		return ;
+	}
 	
+	// set swapchain_count to zero now we know the
+	// pointer is valid
+	(*swapchain_count) = 0;
+
+	
+	// Do we have a window?
 	if(window == NULL){
 		errno = EINVAL;
 		ALOGE("%s Error Window %p %d : %s ",__FUNCTION__,window,errno,strerror(errno));
 		return ;	
 	}	
 	
+	// We need to figure out what the concrete type backing
+	// the EGLNativeWindow is. ANDROID_NATIVE_WINDOW_MAGIC is
+	// "_wnd" [ 0x5f776e64 ] which fits nicely into a 4 byte integer
+	// Extra void* variable to avoid unneccessary casting drama!
+	// it compiler will abstract it away so there's no extra overhead.
 	void *window_ptr = window;
 	uint32_t* window_magic_ptr = window_ptr;
 	uint32_t window_magic = (*window_magic_ptr);
-	if(window_magic == ANDROID_NATIVE_WINDOW_MAGIC){
+	if(window_magic != ANDROID_NATIVE_WINDOW_MAGIC){
+		ALOGI("%s win=%p is not a ANativeWindow 0x%x\n",__FUNCTION__,window , window_magic);
+		ALOGI("%s Trying EGL_DISPMANX_WINDOW_T \n",__FUNCTION__);
+		
+		EGL_DISPMANX_WINDOW_T* native_window = android_get_dispmanx();
+		(*height) = native_window->height;
+		(*width) = native_window->width;
+		
+		
+	}else if(window_magic == ANDROID_NATIVE_WINDOW_MAGIC){
+				  	
 		ALOGD("%s ANDROID_NATIVE_WINDOW_MAGIC FOUND window=%p 0x%x\n",__FUNCTION__,window,window_magic);
-		ANativeWindow *nativeWindow = window;
-		
-		nativeWindow->query(nativeWindow, NATIVE_WINDOW_WIDTH, width);
-		ALOGD("%s NATIVE_WINDOW_WIDTH = %d ",__FUNCTION__,(*width));
-		
-		nativeWindow->query(nativeWindow, NATIVE_WINDOW_HEIGHT, height);
-		ALOGD("%s NATIVE_WINDOW_HEIGHT = %d ",__FUNCTION__,(*height));
-	
-	}else{
-		ALOGD("%s win=%p 0x%x\n",__FUNCTION__,window , window_magic);
+		ANativeWindow *native_window = window;
+		android_native_window_get_dimensions(native_window,height,width);
 	}
-
+	ALOGD("%s returning height=%d width=%d",__FUNCTION__,(*height),(*width));
+	return ;
+	
+	
 }
 
 
 uint32_t platform_get_color_format ( uint32_t format ) { return format; }
-void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window){}
+void platform_dequeue(EGLDisplay dpy, EGLNativeWindowType window){
+}
 	//ALOGD("%s dpy=%p win=%p ",__FUN}

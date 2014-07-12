@@ -19,7 +19,7 @@ LOCAL_SRC_FILES := common/khrn_client.c \
 					egl/egl_client_context.c \
 					egl/egl_client_get_proc.c \
 					egl/egl_client_surface.c \
-					egl/android/nativewindow.c \
+					egl/android/platform_android.c \
 					ext/egl_brcm_driver_monitor_client.c \
 					ext/egl_brcm_flush_client.c \
 					ext/egl_brcm_global_image_client.c \

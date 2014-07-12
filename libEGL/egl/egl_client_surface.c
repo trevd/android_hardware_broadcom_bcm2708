@@ -339,7 +339,7 @@ EGL_SURFACE_T *egl_surface_create(
    vcos_assert((width <= EGL_CONFIG_MAX_WIDTH && height <= EGL_CONFIG_MAX_HEIGHT) || largest_pbuffer);
 
    if (!surface) {
-	   ALOGI("%s surface=NULL",__FUNCTION__,surface);
+	   ALOGI("%s surface=NULL",__FUNCTION__);
       return 0;
    }
 

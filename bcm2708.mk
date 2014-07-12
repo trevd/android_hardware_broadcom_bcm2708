@@ -3,7 +3,7 @@
 PRODUCT_PACKAGES += \
 	libvcos \
 	libvchiq_arm \
-	libvchostif \
+	libvchost \
 	libEGL_bcm2708
 
 # hw composer HAL
@@ -15,9 +15,7 @@ PRODUCT_PACKAGES += \
 	libgralloc.bcm2708 \
 	gralloc.bcm2708
 
-TARGET_HWC_VERSION := 3
-
-TARGET_EGL_PREBUILT := false
+TARGET_HWC_VERSION := 1_0
 
 TARGET_LOG_VIDEOCORE := true
 TARGET_LOG_EGL := true

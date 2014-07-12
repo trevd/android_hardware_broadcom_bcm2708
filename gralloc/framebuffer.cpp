@@ -72,6 +72,7 @@ struct fb_context_t {
 static int fb_setSwapInterval(struct framebuffer_device_t* dev,
                               int interval)
 {
+    ALOGD("%s",__FUNCTION__);
     //XXX: Get the value here and implement along with
     //single vsync in HWC
     char pval[PROPERTY_VALUE_MAX];
@@ -93,7 +94,7 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
 static int fb_setUpdateRect(struct framebuffer_device_t* dev,
         int l, int t, int w, int h)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
         
@@ -108,7 +109,7 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     if (private_handle_t::validate(buffer) < 0)
         return -EINVAL;
 
@@ -156,6 +157,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 }
 static int fb_compositionComplete(struct framebuffer_device_t* dev)
 {
+    ALOGD("%s",__FUNCTION__);
     // TODO: Properly implement composition complete callback
     glFinish();
 
@@ -165,7 +167,7 @@ static int fb_compositionComplete(struct framebuffer_device_t* dev)
 
 int mapFrameBufferLocked(struct private_module_t* module)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
 // already initialized...
     if (module->framebuffer) {
         return 0;
@@ -353,8 +355,7 @@ if(info.bits_per_pixel == 32) {
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
    module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
-   // dispmanx_alloc(module->framebuffer);
-
+  // dispmanx_alloc(module->framebuffer);
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
 
@@ -371,7 +372,7 @@ if(info.bits_per_pixel == 32) {
 
 static int mapFrameBuffer(struct private_module_t* module)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
     pthread_mutex_unlock(&module->lock);
@@ -382,7 +383,7 @@ static int mapFrameBuffer(struct private_module_t* module)
 
 static int fb_close(struct hw_device_t *dev)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (ctx) {
         free(ctx);
@@ -393,14 +394,11 @@ static int fb_close(struct hw_device_t *dev)
 int fb_device_open(hw_module_t const* module, const char* name,
         hw_device_t** device)
 {
-    ALOGI("%s",__FUNCTION__);
+    
 	int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
-        alloc_device_t* gralloc_device;
-        status = gralloc_open(module, &gralloc_device);
-        if (status < 0)
-            return status;
-
+		ALOGD("%s",__FUNCTION__);
+        
         /* initialize our state here */
         fb_context_t *dev = (fb_context_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
@@ -438,7 +436,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         }
 
         // Close the gralloc module
-        gralloc_close(gralloc_device);
+        //gralloc_close(gralloc_device);
     }
     return status;
 }

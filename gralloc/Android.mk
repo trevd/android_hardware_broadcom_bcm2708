@@ -22,7 +22,7 @@ include $(ANDROID_BUILD_TOP)/hardware/broadcom/$(TARGET_BOARD_PLATFORM)/cflags.m
 
 LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libgralloc.bcm2708 libvcos libvchostif libEGL libGLESv2 libhardware
+LOCAL_SHARED_LIBRARIES := liblog libcutils libvcos libvchost libEGL libGLESv2 libhardware
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\

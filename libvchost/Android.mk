@@ -7,7 +7,7 @@ include $(ANDROID_BUILD_TOP)/hardware/broadcom/$(TARGET_BOARD_PLATFORM)/cflags.m
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
 
-LOCAL_MODULE := libvchostif
+LOCAL_MODULE := libvchost
 LOCAL_SRC_FILES := \
 	linux/vcfilesys.c \
 	linux/vcmisc.c \

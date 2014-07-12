@@ -91,15 +91,6 @@ static FEATURES_AND_FORMATS_T formats[EGL_MAX_CONFIGS] = {
 
 };
 
-void egl_config_install_configs(int type)
-{
-   uint32_t i;
-   for (i = 0; i != ARR_COUNT(formats); ++i) {
-      formats[i].color = (type == 0) ?
-         khrn_image_to_rso_format(formats[i].color) :
-         khrn_image_to_tf_format(formats[i].color);
-   }
-}
 
 static bool bindable_rgb(FEATURES_T features);
 static bool bindable_rgba(FEATURES_T features);
@@ -110,6 +101,19 @@ static bool bindable_rgba(FEATURES_T features);
 #define LOG_TAG "egl_client_config"
 #endif
 #include <utils/Log.h>
+
+
+void egl_config_install_configs(int type)
+{
+   
+   ALOGD("%s type=%d",__FUNCTION__,type);
+   uint32_t i;
+   for (i = 0; i != ARR_COUNT(formats); ++i) {
+         khrn_image_to_tf_format(formats[i].color);
+   }
+}
+
+
 /*
    KHRN_IMAGE_FORMAT_T egl_config_get_color_format(int id)
 

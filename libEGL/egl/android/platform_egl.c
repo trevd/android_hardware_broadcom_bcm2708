@@ -14,7 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <helpers/vc_image.h>
 #include <assert.h>
 #include <system/window.h>
-#include <cutils/Log.h>
+#include <utils/Log.h>
 
 static bool displaying = false;
 static uint32_t current_win = 0;
@@ -178,7 +178,7 @@ void egl_server_platform_display(
 		nativeWindow = get_android_native_window();
 
 	if (nativeWindow) {
-		nativeWindow->dequeueBuffer(nativeWindow, &buffer);
+		nativeWindow->dequeueBuffer(nativeWindow, &buffer,-1);
 		// comment out the line below when software OpenGL is used for SurfaceFlinger 
 		nativeWindow->lockBuffer(nativeWindow, buffer);
 

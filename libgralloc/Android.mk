@@ -24,7 +24,7 @@ LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
 LOCAL_MODULE := libgralloc.bcm2708
 LOCAL_SRC_FILES := gralloc_bcm2708.cpp dispmanx.cpp
-LOCAL_SHARED_LIBRARIES := liblog libui  libvcos libvchiq_arm libvchostif
+LOCAL_SHARED_LIBRARIES := liblog libui  libvcos libvchiq_arm libvchost
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)

@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 #define LOG_TAG "GRALLOC-MAPPER"
+#define LOG_NDEBUG 0
+#include <cutils/log.h>
+
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
@@ -24,14 +27,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <cutils/log.h>
+
 #include <cutils/atomic.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
 #include <gralloc/gralloc_priv.h>
-#include <gralloc/dispmanx.h>
+#include <gralloc/gralloc_dispmanx.h>
 
 
 /* desktop Linux needs a little help with gettid() */
@@ -41,17 +44,67 @@
 pid_t gettid() { return syscall(__NR_gettid);}
 #undef __KERNEL__
 #endif
-
+EGL_DISPMANX_WINDOW_T* dispmanx_window = NULL;
 inline size_t ALIGN(size_t x, size_t align) {
     return (x + align-1) & ~(align-1);
 }
 /*****************************************************************************/
+int create_dispmanx_window(EGL_DISPMANX_WINDOW_T* window) 
+{
+   int32_t success = 0;
+   
+  
 
+   DISPMANX_ELEMENT_HANDLE_T dispman_element;
+   DISPMANX_DISPLAY_HANDLE_T dispman_display;
+   DISPMANX_UPDATE_HANDLE_T dispman_update;
+   VC_RECT_T dst_rect;
+   VC_RECT_T src_rect;
+   
+
+   uint32_t display_width;
+   uint32_t display_height;
+
+   // create an EGL window surface, passing context width/height
+   success = vc_dispmanx_display_get_size(0 /* LCD */, &display_width, &display_height);
+   if ( success < 0 )
+   {
+      return EGL_FALSE;
+   }
+   
+   // You can hardcode the resolution here:
+   //display_width = 640;
+   //display_height = 480;
+
+   dst_rect.x = 0;
+   dst_rect.y = 0;
+   dst_rect.width = display_width;
+   dst_rect.height = display_height;
+      
+   src_rect.x = 0;
+   src_rect.y = 0;
+   src_rect.width = display_width << 16;
+   src_rect.height = display_height << 16;   
+
+   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+   dispman_update = vc_dispmanx_update_start( 0 );
+         
+   dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
+      0/*layer*/, &dst_rect, 0/*src*/,
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
+
+   window->element = dispman_element;
+   window->width = display_width;
+   window->height = display_height;
+   vc_dispmanx_update_submit_sync( dispman_update );
+   
+	return EGL_TRUE;
+}
 static int gralloc_map(gralloc_module_t const* /*module*/,
         buffer_handle_t handle,
         void** vaddr)
 {
-	ALOGI("%s",__FUNCTION__);
+	ALOGD("%s",__FUNCTION__);
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         size_t size = hnd->size;
@@ -73,7 +126,7 @@ static int gralloc_map(gralloc_module_t const* /*module*/,
 static int gralloc_unmap(gralloc_module_t const* /*module*/,
         buffer_handle_t handle)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         void* base = (void*)hnd->base;
@@ -92,7 +145,7 @@ static int gralloc_unmap(gralloc_module_t const* /*module*/,
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -143,7 +196,7 @@ int gralloc_register_buffer(gralloc_module_t const* module,
 int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGI("%s",__FUNCTION__);
+   ALOGD("%s",__FUNCTION__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -157,7 +210,7 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
 int mapBuffer(gralloc_module_t const* module,
         private_handle_t* hnd)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     void* vaddr;
     return gralloc_map(module, hnd, &vaddr);
 }
@@ -165,7 +218,7 @@ int mapBuffer(gralloc_module_t const* module,
 int terminateBuffer(gralloc_module_t const* module,
         private_handle_t* hnd)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     if (hnd->base) {
         // this buffer was mapped, unmap it now
         gralloc_unmap(module, hnd);
@@ -179,7 +232,7 @@ int gralloc_lock(gralloc_module_t const* /*module*/,
         int l, int t, int w, int h,
         void** vaddr)
 {
-    ALOGI("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
     // this is called when a buffer is being locked for software
     // access. in thin implementation we have nothing to do since
     // not synchronization with the h/w is needed.
@@ -193,13 +246,13 @@ int gralloc_lock(gralloc_module_t const* /*module*/,
 
     private_handle_t* hnd = (private_handle_t*)handle;
     *vaddr = (void*)hnd->base;
-    return dispmanx_lock(hnd, usage, l, t, w, h, vaddr);
+    return 0 ;//dispmanx_lock(hnd, usage, l, t, w, h, vaddr);
 }
 
 int gralloc_unlock(gralloc_module_t const* /*module*/,
         buffer_handle_t handle)
 {
-    ALOGI("%s",__FUNCTION__);
+   ALOGD("%s",__FUNCTION__);
     // we're done with a software buffer. nothing to do in this
     // implementation. typically this is used to flush the data cache.
 
@@ -207,18 +260,58 @@ int gralloc_unlock(gralloc_module_t const* /*module*/,
         return -EINVAL;
         
           private_handle_t* hnd = (private_handle_t*)handle;
-    dispmanx_unlock(hnd);
-      dispmanx_unlock(hnd);
+
+     // dispmanx_unlock(hnd);
     return 0;
 }
 int gralloc_perform(struct gralloc_module_t const* module,
                     int operation, ... )
 {
-	 ALOGI("%s",__FUNCTION__);
+	 ALOGD("%s",__FUNCTION__);
 	    int res = -EINVAL;
     va_list args;
+    
     va_start(args, operation);
     switch (operation) {
+		case GRALLOC_MODULE_PERFORM_CREATE_DISPMANX_WINDOW_HANDLE:
+			{
+				ALOGV("%s CREATE_DISPMANX_WINDOW_HANDLE dispmanx_window=%p",__FUNCTION__,dispmanx_window);
+				dispmanx_window = (EGL_DISPMANX_WINDOW_T*)malloc(sizeof(EGL_DISPMANX_WINDOW_T));
+				create_dispmanx_window(dispmanx_window);
+				ALOGV("%s CREATE_DISPMANX_WINDOW_HANDLE dispmanx_window=%p",__FUNCTION__,dispmanx_window);
+				ALOGV("%s CREATE_DISPMANX_WINDOW_HANDLE dispmanx_window->width=%d",__FUNCTION__,dispmanx_window->width);
+				ALOGV("%s CREATE_DISPMANX_WINDOW_HANDLE dispmanx_window->element=%p",__FUNCTION__,dispmanx_window->element);
+				res = 0 ; 
+				break;	
+   
+		
+			}
+		case GRALLOC_MODULE_PERFORM_GET_DISPMANX_WINDOW_HANDLE:
+			{
+				ALOGV("%s GET_DISPMANX_WINDOW_HANDLE %p",__FUNCTION__,dispmanx_window);
+				
+				//EGL_DISPMANX_WINDOW_T **fd = va_arg(args, EGL_DISPMANX_WINDOW_T **);
+				//ALOGV("%s ET_DISPMANX_WINDOW_HANDLE fd=%p fd=%d",__FUNCTION__,fd , (*fd));
+				//fd = &dispmanx_window;
+				//ALOGV("%s ET_DISPMANX_WINDOW_HANDLE fd=%p",__FUNCTION__,fd);
+				res = (int)dispmanx_window;
+				break;	
+   
+		
+			}
+		case GRALLOC_MODULE_PERFORM_GET_DISPMANX_ELEMENT:
+			{
+				ALOGV("%s GET_DISPMANX_ELEMENT %p",__FUNCTION__,dispmanx_window);
+				
+				//EGL_DISPMANX_WINDOW_T **fd = va_arg(args, EGL_DISPMANX_WINDOW_T **);
+				//ALOGV("%s ET_DISPMANX_WINDOW_HANDLE fd=%p fd=%d",__FUNCTION__,fd , (*fd));
+				//fd = &dispmanx_window;
+				//ALOGV("%s ET_DISPMANX_WINDOW_HANDLE fd=%p",__FUNCTION__,fd);
+				res = (int)dispmanx_window->element;
+				break;	
+   
+		
+			}
         case GRALLOC_MODULE_PERFORM_CREATE_HANDLE_FROM_BUFFER:
             {
                 int fd = va_arg(args, int);
@@ -261,7 +354,7 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
                  struct android_ycbcr *ycbcr)
 {
      
-   ALOGI("%s",__FUNCTION__);
+  ALOGD("%s",__FUNCTION__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 

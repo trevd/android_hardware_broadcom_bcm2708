@@ -83,7 +83,7 @@ int main(void)
     int             ret;
     VC_RECT_T       src_rect;
     VC_RECT_T       dst_rect;
-    VC_IMAGE_TYPE_T type = VC_IMAGE_RGBA32;
+    VC_IMAGE_TYPE_T type = VC_IMAGE_RGB565;
     int width = WIDTH, height = HEIGHT;
     int pitch = ALIGN_UP(width*2, 32);
     int aligned_height = ALIGN_UP(height, 16);

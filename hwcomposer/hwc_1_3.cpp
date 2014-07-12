@@ -29,7 +29,7 @@
 
 #include <vmcs_host/vc_host.h>
 #include <gralloc/gralloc_priv.h>
-#include <gralloc/gralloc_brcm.h>
+
 #include <gralloc/dispmanx.h>
 
 #define HWC_DBG 1
@@ -130,6 +130,27 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
         reserved: {0},
     }
 };
+
+
+void closeAcquireFds(hwc_display_contents_1_t* list,int dpy) {
+    if(list) {
+        for(uint32_t i = 0; i < list->numHwLayers; i++) {
+            //Close the acquireFenceFds
+            //HWC_FRAMEBUFFER are -1 already by SF, rest we close.
+            if(list->hwLayers[i].acquireFenceFd >= 0) {
+                close(list->hwLayers[i].acquireFenceFd);
+                list->hwLayers[i].acquireFenceFd = -1;
+            }
+        }
+
+        //Writeback
+        if(dpy > HWC_DISPLAY_EXTERNAL && list->outbufAcquireFenceFd >= 0) {
+            close(list->outbufAcquireFenceFd);
+            list->outbufAcquireFenceFd = -1;
+        }
+    }
+}
+
 /*****************************************************************************/
 static void hwc_get_rd_layer(hwc_layer_1_t *src, struct hwc_layer_rd *dst){
 	//ALOGD("%s src=%p src->format=%d",__FUNCTION__,src,src->format);
@@ -234,7 +255,7 @@ static int32_t  hwc_can_render_layer(uint32_t format)
 		break;
 	default:
 		ret=-1;
-		ALOGD("%s ret=%d format=%d",__FUNCTION__);
+		ALOGD("%s ret=%d format=%d",__FUNCTION__,format,ret);
 		break;
 	}
 	
@@ -473,6 +494,7 @@ static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
 	ALOGI("%s numDisplays=%d",__FUNCTION__,numDisplays);
     for (int32_t i = numDisplays - 1; i >= 0; i--) {
         hwc_display_contents_1_t *list = displays[i];
+        closeAcquireFds(list,i);
         if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
 			ALOGD("%s EGLDisplay dpy=%p sur=%p",__FUNCTION__,list->dpy,list->sur);
 			for (size_t i=0 ; i<list->numHwLayers ; i++) {
@@ -480,7 +502,8 @@ static int hwc_prepare(hwc_composer_device_1 *dev, size_t numDisplays,
 				hwc_get_rd_layer(&list->hwLayers[i], lr);
 				if(!hwc_can_render_layer(lr->format)){
 					if(HWC_DBG)	ALOGD("Layer %d = OVERLAY!", i);
-					list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+					list->hwLayers[i].compositionType = HWC_OVERLAY;
+					//list->hwLayers[i]. = HWC_FRAMEBUFFER;
 				}else{
 					if(HWC_DBG)	ALOGD("Layer %d = NOT OVERLAY!", i);
 					list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
@@ -551,12 +574,16 @@ static int hwc_set(hwc_composer_device_1 *dev,
 
 	  int ret = 0;
 	const int dpy = HWC_DISPLAY_PRIMARY;
+	
     bcm2708_hwc_composer_device_1_t* ctx = (bcm2708_hwc_composer_device_1_t*)(dev);
     for (uint32_t i = 0; i < numDisplays; i++) {
         hwc_display_contents_1_t* list = displays[i];
             for (size_t i=0 ; i<list->numHwLayers ; i++) {
         dump_layer(&list->hwLayers[i]);
+        
+        
     }
+    closeAcquireFds(list,i);
 		if(list == NULL){	//NULL list means hwc won't run or we're powering down screen
 			if(dpy && list->sur){	//if we have dpy and sur, hwcomposer has been disabled. swap buffers and leave.
 				if(HWC_DBG)	ALOGD("list == NULL");
@@ -565,7 +592,7 @@ static int hwc_set(hwc_composer_device_1 *dev,
 		}
 		
 	ALOGI("%s EGLDisplay dpy=%p sur=%p cdpy=%p csur=%p",__FUNCTION__,(EGLDisplay)list->dpy,(EGLSurface)list->sur,eglGetCurrentDisplay(),eglGetCurrentSurface(EGL_DRAW));
-		EGLBoolean success = eglSwapBuffers(eglGetCurrentDisplay(),eglGetCurrentSurface(EGL_DRAW));
+		EGLBoolean success = eglSwapBuffers((EGLDisplay)list->dpy, (EGLSurface)list->sur);
 		if (!success) {
 			if(HWC_DBG)	ALOGD("eglSwapBuffers errored.");
 			return HWC_EGL_ERROR;

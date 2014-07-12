@@ -86,12 +86,12 @@
 
 #include <vmcs_host/vc_dispmanx.h>
 typedef struct {
-   DISPMANX_ELEMENT_HANDLE_T element;
-   int width;   /* This is necessary because dispmanx elements are not queriable. */
-   int height;
+	DISPMANX_ELEMENT_HANDLE_T element;
+	int width;   /* This is necessary because dispmanx elements are not queriable. */
+	int height;
 } EGL_DISPMANX_WINDOW_T;
 
-#include <android/native_window.h>
+#include <system/window.h>
 
 struct egl_native_pixmap_t;
 

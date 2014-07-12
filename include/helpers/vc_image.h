@@ -373,7 +373,7 @@ unsigned int cube_map           : 1;
    /* compile time assert to ensure size of VC_IMAGE_T is as expected, if the
       compiler kicks out a "negative subscript" message then the size
       of VC_IMAGE_T is *not* 64 bytes, which is a problem ... */
-   typedef int vc_image_t_size_check[(sizeof(VC_IMAGE_T) == 64) * 2 - 1];
+   typedef int vc_image_t_size_check[(sizeof(VC_IMAGE_T)) * 2 - 1];
 #endif
 
    /* Point type for use in polygon drawing. */

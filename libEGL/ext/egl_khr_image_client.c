@@ -43,10 +43,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vcos/vcos.h>
 
 
-#include <gralloc/gralloc_bcm2708.h>
+//#include <gralloc/gralloc_bcm2708.h>
 #include <utils/Log.h>
 
-#include <gralloc/gralloc_bcm2708.h>
+//#include <gralloc/gralloc_bcm2708.h>
 //#include <middleware/khronos/common/2708/khrn_prod_4.h>
 
 
@@ -162,24 +162,23 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
                   buf_error = true;
                }
 #endif
-            } else if (target == EGL_NATIVE_BUFFER_ANDROID) {
-               gralloc_private_handle_t *gpriv = gralloc_private_handle_from_client_buffer(buffer);
+            } else if (target == EGL_NATIVE_BUFFER_ANDROID) {/*
+               gralloc_private_handle_t *gpriv = NULL ; //gralloc_private_handle_from_client_buffer(buffer);
                int res_type = gralloc_private_handle_get_res_type(gpriv);
 
                if (res_type == GRALLOC_PRIV_TYPE_GL_RESOURCE) {
-                  /* just return the a copy of the EGLImageKHR gralloc created earlier
-                     see hardware/broadcom/videocore/components/graphics/gralloc/ */
+                  // just return the a copy of the EGLImageKHR gralloc created earlier hardware/broadcom/videocore/components/graphics/gralloc/ 
                   target = EGL_IMAGE_BRCM_DUPLICATE;
-                  buf[0] = (uint32_t)gralloc_private_handle_get_egl_image(gpriv);
+                  buf[0] =  = NULL ; //(uint32_t)gralloc_private_handle_get_egl_image(gpriv);
                   vcos_log_trace("%s: converting buffer %p egl_image %d to EGL_IMAGE_BRCM_DUPLICATE",
                         __FUNCTION__, buffer, buf[0]);
                }
                else if (res_type == GRALLOC_PRIV_TYPE_MM_RESOURCE) {
-                  /* MM image is potentially going to be used as a texture so
-                   * VC EGL needs to acquire a reference to the underlying vc_image.
-                   * So, we create the image in the normal way.
-                   * EGL_NATIVE_BUFFER_ANDROID is passed as the target.
-                   */
+                  // MM image is potentially going to be used as a texture so
+                  // VC EGL needs to acquire a reference to the underlying vc_image.
+                  // So, we create the image in the normal way.
+                  // EGL_NATIVE_BUFFER_ANDROID is passed as the target.
+                  //
                   if (gpriv->gl_format == GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE)
                      target = EGL_IMAGE_BRCM_MULTIMEDIA;
                   else
@@ -187,14 +186,14 @@ EGLAPI EGLImageKHR EGLAPIENTRY eglCreateImageKHR (EGLDisplay dpy, EGLContext ctx
                   
                   buffer_stride = gpriv->stride;
 
-                  buf[0] = gralloc_private_handle_get_vc_handle(gpriv);
+                  buf[0] =  = NULL ; // gralloc_private_handle_get_vc_handle(gpriv);
                   vcos_log_trace("%s: converting buffer %p handle %u to EGL_IMAGE_BRCM_MULTIMEDIA",
                         __FUNCTION__, buffer, buf[0]);
                }
                else {
                   vcos_log_error("%s: unknown gralloc resource type %x", __FUNCTION__, res_type);
                }
-            } else {
+            */} else {
                vcos_log_trace("%s:target type %x buffer %p handled on server", __FUNCTION__, target, buffer);
                buf[0] = (uint32_t)buffer;
             }

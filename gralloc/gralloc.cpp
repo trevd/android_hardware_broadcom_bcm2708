@@ -31,16 +31,16 @@
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 
-#include <hardware/hardware.h>;4067
+#include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
 
 #include <gralloc/gralloc_priv.h>
-#include <gralloc/gralloc_brcm.h>
+//#include <gralloc/gralloc_brcm.h>
 #include <vmcs_host/vc_host.h>
 #include <gralloc/gr.h>
 
-#include <gralloc/dispmanx.h>
+//#include <gralloc/dispmanx.h>
 
 /*****************************************************************************/
 
@@ -157,7 +157,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     intptr_t vaddr = intptr_t(m->framebuffer->base);
     private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
-	dispmanx_alloc(hnd);
+	//dispmanx_alloc(hnd);
     // find a free slot
     for (uint32_t i=0 ; i<numBuffers ; i++) {
         if ((bufferMask & (1LU<<i)) == 0) {
@@ -170,7 +170,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
-
+	//dispmanx_alloc(hnd);
     return 0;
 }
 
@@ -204,7 +204,7 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
         private_handle_t* hnd = new private_handle_t(fd, size, 0);
         gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
                 dev->common.module);
-        dispmanx_alloc(hnd);
+        //dispmanx_alloc(hnd);
         err = mapBuffer(module, hnd);
         
         if (err == 0) {
@@ -389,9 +389,9 @@ static int gralloc_close(struct hw_device_t *dev)
 int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
-    ALOGI("%s name=%s",__FUNCTION__,name);
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
+		ALOGI("%s name=%s",__FUNCTION__,name);
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
 

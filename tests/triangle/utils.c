@@ -93,7 +93,7 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
    context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs );
    if ( context == EGL_NO_CONTEXT )
    {
-	  //  ALOGE("%s eglCreateContext==EGL_NO_CONTEXT",__FUNCTION__);
+	   ALOGE("%s eglCreateContext==EGL_NO_CONTEXT",__FUNCTION__);
       return EGL_FALSE;
    }   
    
@@ -117,55 +117,11 @@ EGLBoolean CreateEGLContext ( EGLNativeWindowType hWnd, EGLDisplay* eglDisplay,
 EGLBoolean WinCreate(ESContext *esContext, const char *title) 
 {
    int32_t success = 0;
-
-   static EGL_DISPMANX_WINDOW_T nativewindow;
-
-   DISPMANX_ELEMENT_HANDLE_T dispman_element;
-   DISPMANX_DISPLAY_HANDLE_T dispman_display;
-   DISPMANX_UPDATE_HANDLE_T dispman_update;
-   VC_RECT_T dst_rect;
-   VC_RECT_T src_rect;
-   
-
-   int display_width;
-   int display_height;
-
-   // create an EGL window surface, passing context width/height
-   success = vc_dispmanx_display_get_size(0 /* LCD */, &display_width, &display_height);
-   if ( success < 0 )
-   {
-      return EGL_FALSE;
-   }
-   
-   // You can hardcode the resolution here:
-   //display_width = 640;
-   //display_height = 480;
-
-   dst_rect.x = 0;
-   dst_rect.y = 0;
-   dst_rect.width = display_width;
-   dst_rect.height = display_height;
-      
-   src_rect.x = 0;
-   src_rect.y = 0;
-   src_rect.width = display_width << 16;
-   src_rect.height = display_height << 16;   
-
-   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
-   dispman_update = vc_dispmanx_update_start( 0 );
-         
-   dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
-      0/*layer*/, &dst_rect, 0/*src*/,
-      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
-      
-   nativewindow.element = dispman_element;
-   nativewindow.width = display_width;
-   nativewindow.height = display_height;
-   vc_dispmanx_update_submit_sync( dispman_update );
-   
-   esContext->hWnd = &nativewindow;
+	static ANativeWindow nw ; 
+	esContext->hWnd = &nw;
 
 	return EGL_TRUE;
+  
 }
 ///
 //  userInterrupt()
@@ -224,10 +180,10 @@ GLboolean ESUTIL_API esCreateWindow ( ESContext *esContext, const char* title, G
 {
    EGLint attribList[] =
    {
-       EGL_RED_SIZE,       5,
-       EGL_GREEN_SIZE,     6,
-       EGL_BLUE_SIZE,      5,
-       EGL_ALPHA_SIZE,     (flags & ES_WINDOW_ALPHA) ? 8 : EGL_DONT_CARE,
+       EGL_RED_SIZE,       8,
+       EGL_GREEN_SIZE,     8,
+       EGL_BLUE_SIZE,      8,
+       EGL_ALPHA_SIZE,     EGL_DONT_CARE,
        EGL_DEPTH_SIZE,     (flags & ES_WINDOW_DEPTH) ? 8 : EGL_DONT_CARE,
        EGL_STENCIL_SIZE,   (flags & ES_WINDOW_STENCIL) ? 8 : EGL_DONT_CARE,
        EGL_SAMPLE_BUFFERS, (flags & ES_WINDOW_MULTISAMPLE) ? 1 : 0,

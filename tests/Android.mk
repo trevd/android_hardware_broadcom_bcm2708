@@ -1,5 +1,8 @@
 dirs := \
+	libkhrn \
 	dispmanx \
-	EGL
+	triangle \
+	teapot \
+	ilclient 
 
 include $(call all-named-subdir-makefiles, $(dirs))

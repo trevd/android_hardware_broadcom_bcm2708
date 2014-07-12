@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef LOG_TAG
 #undef LOG_TAG
 #define LOG_TAG "egl_client"
+#define LOG_NDEBUG 0
 #endif
 #include <utils/Log.h>
 
@@ -158,11 +159,13 @@ by an attribute value"
 #include <stdlib.h>
 #include <string.h>
 
-
+#include <khronos/egl/android/platform_android.h>
 #include <egl/egl_client_cr.c>
+
 #ifdef LOG_TAG
 #undef LOG_TAG
 #define LOG_TAG "egl_client"
+#define LOG_NDEBUG 0
 #endif
 #include <utils/Log.h>
 VCOS_LOG_CAT_T egl_client_log_cat;
@@ -249,6 +252,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglInitialize(EGLDisplay dpy, EGLint *major, EGLin
          result = EGL_FALSE;
 
       if (result) {
+		 android_open_device();
          if (major)
             *major = 1;
          if (minor)
@@ -2249,15 +2253,15 @@ EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative(EGLint engine)
    return result;
 }
 
+
 EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 {
-	//ALOGI("%s",__FUNCTION__);
 
    CLIENT_THREAD_STATE_T *thread;
    CLIENT_PROCESS_STATE_T *process;
    EGLBoolean result;
 
-   //ALOGD("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
+   ALOGD("eglSwapBuffers start. dpy=%d. surf=%d.", (int)dpy, (int)surf);
 
    if (CLIENT_LOCK_AND_GET_STATES(dpy, &thread, &process))
    {
@@ -2267,11 +2271,20 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
       surface = client_egl_get_surface(thread, process, surf);
 
-      //ALOGD("eglSwapBuffers get surface %p surface->name=%p buffers=%p",(int)surface,surface->name,surface->buffers);
+      ALOGD("eglSwapBuffers get surface %x",(int)surface);
 
       if (surface) {
 
-         
+#if !(EGL_KHR_lock_surface)
+         /* Surface to be displayed must be bound to current context and API */
+         /* This check is disabled if we have the EGL_KHR_lock_surface extension */
+         if (thread->bound_api == EGL_OPENGL_ES_API && surface != thread->opengl.draw && surface != thread->opengl.read
+          || thread->bound_api == EGL_OPENVG_API    && surface != thread->openvg.draw) {
+            thread->error = EGL_BAD_SURFACE;
+         } else
+#endif
+         {
+
             if (surface->type == WINDOW) {
                uint32_t width, height, swapchain_count;
 
@@ -2300,8 +2313,9 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
                   surface->height = height;
                }
 
-               //ALOGD("eglSwapBuffers comparison: %d %d, %d %d",
-               //         surface->base_height , surface->base_width, surface->height, surface->width);
+               ALOGD("eglSwapBuffers comparison: %d %d, %d %d",
+                        surface->width, surface->base_width, surface->height,
+                        surface->base_height);
 
                /* TODO: raise EGL_BAD_ALLOC if we try to enlarge window and then run out of memory
 
@@ -2311,11 +2325,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
                // We don't call flush_current_api() here because it's only relevant
                // for pixmap surfaces (eglIntSwapBuffers takes care of flushing on
                // the server side).
-			//	ALOGD("%s Pre platform_surface_update surface=%p surface->internal_handle=%p",__FUNCTION__,surface,surface->internal_handle);
+
                platform_surface_update(surface->internal_handle);
-			//ALOGD("%s Post platform_surface_update surface=%p surface->internal_handle=%p",__FUNCTION__,surface,surface->internal_handle);
-               //ALOGD("eglSwapBuffers server call");
-			//ALOGD("%s platform_dequeue surface->internal_handle=%p surface->serverbuffer=%p",__FUNCTION__,surface->internal_handle,surface->serverbuffer);
+
+               ALOGD("eglSwapBuffers server call");
+
                RPC_CALL6(eglIntSwapBuffers_impl,
                      thread,
                      EGLINTSWAPBUFFERS_ID,
@@ -2330,26 +2344,29 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surf)
 
 
                CLIENT_UNLOCK();
-               //ALOGD("%s platform_dequeue dpy=%p surface->win=%p",__FUNCTION__,dpy,surface->win);
                platform_dequeue(dpy, surface->win);
                CLIENT_LOCK();
 
 
+            } else {
+
             }
+            // else do nothing. eglSwapBuffers has no effect on pixmap or pbuffer surfaces
+         }
       }
 
       result = (thread->error == EGL_SUCCESS);
+      ALOGD("eglSwapBuffers end result=EGL_TRUE");
       CLIENT_UNLOCK();
    }
-   else
+   else{
       result = EGL_FALSE;
-
-   // ALOGD("eglSwapBuffers end result=%d %d",result,EGL_FALSE);
+      ALOGD("eglSwapBuffers end result=EGL_FALSE");
+	}	
+   
 
    return result;
-
 }
-
 EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy, EGLSurface surf, EGLNativePixmapType target)
 {
 	ALOGI("%s",__FUNCTION__);

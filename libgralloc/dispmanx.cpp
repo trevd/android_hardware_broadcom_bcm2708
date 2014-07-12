@@ -115,7 +115,7 @@ int dispmanx_alloc(private_handle_t* handle)
     src_rect.y = 0;
     src_rect.width = handle->brcm_handle->window.width << 16;
     src_rect.height = handle->brcm_handle->window.height << 16;
-	VC_IMAGE_TYPE_T type = VC_IMAGE_RGB565 ; // format_to_vc_format( handle->format);
+	VC_IMAGE_TYPE_T type = VC_IMAGE_RGBA32 ; // format_to_vc_format( handle->format);
     uint32_t dummy = 0;
     
      handle->brcm_handle->dispman_display = vc_dispmanx_display_open(0);

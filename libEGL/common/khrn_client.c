@@ -197,13 +197,7 @@ bool client_process_state_init(CLIENT_PROCESS_STATE_T *process)
       process->inited = true;
    }
 
-#ifndef ABSTRACT_PLATFORM
-#if defined(ANDROID) && !defined (ANDROID_HWCOMPOSER)
    egl_config_install_configs(1); // T-format configs
-#else
-   egl_config_install_configs(0); // RSO configs
-#endif
-#endif
 
    return true;
 }
