@@ -3,7 +3,7 @@ ifeq ($(strip $(TARGET_BCM2708_COMPILE_RAZDROID_LIBS)),)
 
 # OpenGLES Implementation
 PRODUCT_PACKAGES += \
-	libEGL_bcm2708
+	libGLES_bcm2708
 	
 # Gralloc
 PRODUCT_PACKAGES += \
