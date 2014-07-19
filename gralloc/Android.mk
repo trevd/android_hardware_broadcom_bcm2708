@@ -15,20 +15,25 @@
 
 LOCAL_PATH := $(call my-dir)
 
-# HAL module implemenation stored in
-# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
-include $(ANDROID_BUILD_TOP)/hardware/broadcom/$(TARGET_BOARD_PLATFORM)/cflags.mk
 
-LOCAL_C_INCLUDES += hardware/broadcom/$(TARGET_BOARD_PLATFORM)/include
+LOCAL_PREBUILT_LIBS := libbcm_host_static.a
+LOCAL_MODULE_TAGS := optional
+include $(BUILD_MULTI_PREBUILT)
+
+include $(CLEAR_VARS)
+$(info $(LOCAL_C_INCLUDES))
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libvcos libvchost libEGL libGLESv2 libhardware
+LOCAL_SHARED_LIBRARIES := libcutils liblog libdl
+LOCAL_STATIC_LIBRARIES := libbcm_host_static
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
-	mapper.cpp
-
+	mapper.cpp \
+	gralloc_dispmanx.cpp
+	
 LOCAL_MODULE := gralloc.bcm2708
-
+LOCAL_CFLAGS += -DLOG_TAG=\"gralloc.2708\"
+LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)

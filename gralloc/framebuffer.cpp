@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "GRALLOC-FRAMEBUFFER"
+
 #include <sys/mman.h>
 
 #include <dlfcn.h>
 
 #include <cutils/ashmem.h>
-#include <cutils/log.h>
+#include <utils/Log.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
@@ -30,32 +30,22 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <cutils/log.h>
+#include <utils/Log.h>
 #include <cutils/atomic.h>
-#include <cutils/properties.h>
+
+#if HAVE_ANDROID_OS
 #include <linux/fb.h>
+#endif
 
-#include <GLES/gl.h>
-#include <gralloc/gralloc_priv.h>
-#include <gralloc/gr.h>
-#include <gralloc/dispmanx.h>
+#include "gralloc_priv.h"
+#include "gr.h"
 
+#include "gralloc_dispmanx.h"
 
 /*****************************************************************************/
-#define NUM_FRAMEBUFFERS_MIN  2
-#define NUM_FRAMEBUFFERS_MAX  2
 
-
-#define COLOR_FORMAT(x) (x & 0xFFF) // Max range for colorFormats is 0 - FFF
 // numbers of buffers for page flipping
-
-
-enum {
-    // flag to indicate we'll post this buffer
-    PRIV_USAGE_LOCKED_FOR_POST = 0x80000000,
-    PRIV_MIN_SWAP_INTERVAL = 0,
-    PRIV_MAX_SWAP_INTERVAL = 1,
-};
+#define NUM_BUFFERS 2
 
 
 enum {
@@ -70,31 +60,18 @@ struct fb_context_t {
 /*****************************************************************************/
 
 static int fb_setSwapInterval(struct framebuffer_device_t* dev,
-                              int interval)
+            int interval)
 {
-    ALOGD("%s",__FUNCTION__);
-    //XXX: Get the value here and implement along with
-    //single vsync in HWC
-    char pval[PROPERTY_VALUE_MAX];
-    property_get("debug.egl.swapinterval", pval, "-1");
-    int property_interval = atoi(pval);
-    if (property_interval >= 0)
-        interval = property_interval;
-
     fb_context_t* ctx = (fb_context_t*)dev;
-    private_module_t* m = reinterpret_cast<private_module_t*>(
-        dev->common.module);
     if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
         return -EINVAL;
-
-    m->swapInterval = interval;
+    // FIXME: implement fb_setSwapInterval
     return 0;
 }
 
 static int fb_setUpdateRect(struct framebuffer_device_t* dev,
         int l, int t, int w, int h)
 {
-    ALOGD("%s",__FUNCTION__);
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
         
@@ -109,7 +86,6 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
-    ALOGD("%s",__FUNCTION__);
     if (private_handle_t::validate(buffer) < 0)
         return -EINVAL;
 
@@ -155,32 +131,24 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
     
     return 0;
 }
-static int fb_compositionComplete(struct framebuffer_device_t* dev)
-{
-    ALOGD("%s",__FUNCTION__);
-    // TODO: Properly implement composition complete callback
-    glFinish();
 
-    return 0;
-}
 /*****************************************************************************/
 
 int mapFrameBufferLocked(struct private_module_t* module)
 {
-    ALOGD("%s",__FUNCTION__);
-// already initialized...
+    // already initialized...
     if (module->framebuffer) {
         return 0;
     }
+        
     char const * const device_template[] = {
-        "/dev/graphics/fb%u",
-        "/dev/fb%u",
-        0 };
+            "/dev/graphics/fb%u",
+            "/dev/fb%u",
+            0 };
 
     int fd = -1;
     int i=0;
     char name[64];
-    char property[PROPERTY_VALUE_MAX];
 
     while ((fd==-1) && device_template[i]) {
         snprintf(name, 64, device_template[i], 0);
@@ -205,53 +173,6 @@ int mapFrameBufferLocked(struct private_module_t* module)
     info.yoffset = 0;
     info.activate = FB_ACTIVATE_NOW;
 
-    /* Interpretation of offset for color fields: All offsets are from the
-     * right, inside a "pixel" value, which is exactly 'bits_per_pixel' wide
-     * (means: you can use the offset as right argument to <<). A pixel
-     * afterwards is a bit stream and is written to video memory as that
-     * unmodified. This implies big-endian byte order if bits_per_pixel is
-     * greater than 8.
-     */
-if(info.bits_per_pixel == 32) {
-        /*
-         * Explicitly request RGBA_8888
-         */
-        info.bits_per_pixel = 32;
-        info.red.offset     = 24;
-        info.red.length     = 8;
-        info.green.offset   = 16;
-        info.green.length   = 8;
-        info.blue.offset    = 8;
-        info.blue.length    = 8;
-        info.transp.offset  = 0;
-        info.transp.length  = 8;
-
-        /* Note: the GL driver does not have a r=8 g=8 b=8 a=0 config, so if we
-         * do not use the MDP for composition (i.e. hw composition == 0), ask
-         * for RGBA instead of RGBX. */
-        if (property_get("debug.sf.hw", property, NULL) > 0 &&
-                                                           atoi(property) == 0)
-            module->fbFormat = HAL_PIXEL_FORMAT_RGBX_8888;
-        else if(property_get("debug.composition.type", property, NULL) > 0 &&
-                (strncmp(property, "mdp", 3) == 0))
-            module->fbFormat = HAL_PIXEL_FORMAT_RGBX_8888;
-        else
-            module->fbFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-    } else {
-        /*
-         * Explicitly request 5/6/5
-         */
-        info.bits_per_pixel = 16;
-        info.red.offset     = 11;
-        info.red.length     = 5;
-        info.green.offset   = 5;
-        info.green.length   = 6;
-        info.blue.offset    = 0;
-        info.blue.length    = 5;
-        info.transp.offset  = 0;
-        info.transp.length  = 0;
-        module->fbFormat = HAL_PIXEL_FORMAT_RGB_565;
-    }
     /*
      * Request NUM_BUFFERS screens (at lest 2 for page flipping)
      */
@@ -354,8 +275,9 @@ if(info.bits_per_pixel == 32) {
 
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
-   module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
-  // dispmanx_alloc(module->framebuffer);
+    module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
+    dispmanx_alloc(module->framebuffer);
+
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
 
@@ -365,14 +287,13 @@ if(info.bits_per_pixel == 32) {
         return -errno;
     }
     module->framebuffer->base = intptr_t(vaddr);
-    
     memset(vaddr, 0, fbSize);
+
     return 0;
 }
 
 static int mapFrameBuffer(struct private_module_t* module)
 {
-    ALOGD("%s",__FUNCTION__);
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
     pthread_mutex_unlock(&module->lock);
@@ -383,7 +304,6 @@ static int mapFrameBuffer(struct private_module_t* module)
 
 static int fb_close(struct hw_device_t *dev)
 {
-    ALOGD("%s",__FUNCTION__);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (ctx) {
         free(ctx);
@@ -394,49 +314,45 @@ static int fb_close(struct hw_device_t *dev)
 int fb_device_open(hw_module_t const* module, const char* name,
         hw_device_t** device)
 {
-    
-	int status = -EINVAL;
+    int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
-		ALOGD("%s",__FUNCTION__);
-        
+        alloc_device_t* gralloc_device;
+        status = gralloc_open(module, &gralloc_device);
+        if (status < 0)
+            return status;
+
         /* initialize our state here */
         fb_context_t *dev = (fb_context_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
 
-          /* initialize the procs */
-        dev->device.common.tag      = HARDWARE_DEVICE_TAG;
-        dev->device.common.version  = 0;
-        dev->device.common.module   = const_cast<hw_module_t*>(module);
-        dev->device.common.close    = fb_close;
+        /* initialize the procs */
+        dev->device.common.tag = HARDWARE_DEVICE_TAG;
+        dev->device.common.version = 0;
+        dev->device.common.module = const_cast<hw_module_t*>(module);
+        dev->device.common.close = fb_close;
         dev->device.setSwapInterval = fb_setSwapInterval;
         dev->device.post            = fb_post;
-        dev->device.setUpdateRect   = 0;
-        dev->device.compositionComplete = fb_compositionComplete;
+        dev->device.setUpdateRect = 0;
 
-          private_module_t* m = (private_module_t*)module;
+        private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);
         if (status >= 0) {
             int stride = m->finfo.line_length / (m->info.bits_per_pixel >> 3);
+            int format = (m->info.bits_per_pixel == 32)
+                         ? HAL_PIXEL_FORMAT_RGBX_8888
+                         : HAL_PIXEL_FORMAT_RGB_565;
             const_cast<uint32_t&>(dev->device.flags) = 0;
             const_cast<uint32_t&>(dev->device.width) = m->info.xres;
             const_cast<uint32_t&>(dev->device.height) = m->info.yres;
             const_cast<int&>(dev->device.stride) = stride;
-            const_cast<int&>(dev->device.format) = m->fbFormat;
+            const_cast<int&>(dev->device.format) = format;
             const_cast<float&>(dev->device.xdpi) = m->xdpi;
             const_cast<float&>(dev->device.ydpi) = m->ydpi;
             const_cast<float&>(dev->device.fps) = m->fps;
-            const_cast<int&>(dev->device.minSwapInterval) =
-                                                        PRIV_MIN_SWAP_INTERVAL;
-            const_cast<int&>(dev->device.maxSwapInterval) =
-                                                        PRIV_MAX_SWAP_INTERVAL;
-            const_cast<int&>(dev->device.numFramebuffers) = m->numBuffers;
-            dev->device.setUpdateRect = 0;
-
+            const_cast<int&>(dev->device.minSwapInterval) = 1;
+            const_cast<int&>(dev->device.maxSwapInterval) = 1;
             *device = &dev->device.common;
         }
-
-        // Close the gralloc module
-        //gralloc_close(gralloc_device);
     }
     return status;
 }

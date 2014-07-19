@@ -2,15 +2,7 @@ ifeq ($(TARGET_BOARD_PLATFORM),bcm2708)
 
 bcm2708_dirs := \
 		gralloc \
-		hwcomposer \
-		libEGL \
-		libvchiq_arm \
-		libvchost \
-		libvcos
-
-ifeq ($(strip $(TARGET_BCM2708_COMPILE_TEST)),true)
-bcm2708_dirs += tests
-endif
+		libEGL
 
 include $(call all-named-subdir-makefiles,$(bcm2708_dirs))
 
