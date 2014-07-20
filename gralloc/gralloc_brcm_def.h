@@ -245,4 +245,29 @@ typedef struct gralloc_private_handle_t {
 
 } gralloc_private_handle_t;
 
+typedef void (*DISPMANX_CALLBACK_FUNC_T)(DISPMANX_UPDATE_HANDLE_T u, void * arg);
+#ifdef __cplusplus 
+extern "C" {
+#endif    
+  int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo );
+  DISPMANX_DISPLAY_HANDLE_T vc_dispmanx_display_open( uint32_t device );
+// Updates
+// Start a new update, DISPMANX_NO_HANDLE on error
+  DISPMANX_UPDATE_HANDLE_T vc_dispmanx_update_start( int32_t priority );
+// Add an elment to a display as part of an update
+  DISPMANX_ELEMENT_HANDLE_T vc_dispmanx_element_add ( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
+                                                                     int32_t layer, const VC_RECT_T *dest_rect, DISPMANX_RESOURCE_HANDLE_T src,
+                                                                     const VC_RECT_T *src_rect, DISPMANX_PROTECTION_T protection, 
+                                                                     VC_DISPMANX_ALPHA_T *alpha,
+                                                                     DISPMANX_CLAMP_T *clamp, DISPMANX_TRANSFORM_T transform );
+ int vc_dispmanx_rect_set( VC_RECT_T *rect, uint32_t x_offset, uint32_t y_offset, uint32_t width, uint32_t height );
+// Resources
+// Create a new resource
+  DISPMANX_RESOURCE_HANDLE_T  vc_dispmanx_resource_create( VC_IMAGE_TYPE_T type, uint32_t width, uint32_t height, uint32_t *native_image_handle );
+// Write the bitmap data to VideoCore memory
+  int  vc_dispmanx_resource_write_data( DISPMANX_RESOURCE_HANDLE_T res, VC_IMAGE_TYPE_T src_type, int src_pitch, void * src_address, const VC_RECT_T * rect );
+  int  vc_dispmanx_update_submit( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_CALLBACK_FUNC_T cb_func, void *cb_arg );
+#ifdef __cplusplus 
+}
+#endif
 #endif /* GRALLOC_BRCM_DEF_H_ */

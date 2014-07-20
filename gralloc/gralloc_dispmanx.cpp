@@ -17,6 +17,7 @@
  */
 
 #include "gralloc_dispmanx.h"
+#include "gralloc_brcm_def.h"
 #include "bcm_host.h"
 #include <cutils/log.h>
 
@@ -31,28 +32,10 @@
 #ifndef ALIGN_UP
 #define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
 #endif
-typedef void (*DISPMANX_CALLBACK_FUNC_T)(DISPMANX_UPDATE_HANDLE_T u, void * arg);
 
-extern "C" int vc_dispmanx_display_get_info( DISPMANX_DISPLAY_HANDLE_T display, DISPMANX_MODEINFO_T * pinfo );
-extern "C" DISPMANX_DISPLAY_HANDLE_T vc_dispmanx_display_open( uint32_t device );
-// Updates
-// Start a new update, DISPMANX_NO_HANDLE on error
-extern "C" DISPMANX_UPDATE_HANDLE_T vc_dispmanx_update_start( int32_t priority );
-// Add an elment to a display as part of an update
-extern "C" DISPMANX_ELEMENT_HANDLE_T vc_dispmanx_element_add ( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_DISPLAY_HANDLE_T display,
-                                                                     int32_t layer, const VC_RECT_T *dest_rect, DISPMANX_RESOURCE_HANDLE_T src,
-                                                                     const VC_RECT_T *src_rect, DISPMANX_PROTECTION_T protection, 
-                                                                     VC_DISPMANX_ALPHA_T *alpha,
-                                                                     DISPMANX_CLAMP_T *clamp, DISPMANX_TRANSFORM_T transform );
-extern "C" int vc_dispmanx_rect_set( VC_RECT_T *rect, uint32_t x_offset, uint32_t y_offset, uint32_t width, uint32_t height );
-// Resources
-// Create a new resource
-extern "C" DISPMANX_RESOURCE_HANDLE_T  vc_dispmanx_resource_create( VC_IMAGE_TYPE_T type, uint32_t width, uint32_t height, uint32_t *native_image_handle );
-// Write the bitmap data to VideoCore memory
-extern "C" int  vc_dispmanx_resource_write_data( DISPMANX_RESOURCE_HANDLE_T res, VC_IMAGE_TYPE_T src_type, int src_pitch, void * src_address, const VC_RECT_T * rect );
-extern "C" int  vc_dispmanx_update_submit( DISPMANX_UPDATE_HANDLE_T update, DISPMANX_CALLBACK_FUNC_T cb_func, void *cb_arg );
 void alloc_dispmanx_window_size(private_handle_t* handle)
 {
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     DISPMANX_MODEINFO_T info;
     EGL_DISPMANX_WINDOW_T window;
     vc_dispmanx_display_get_info(handle->brcm_handle->dispman_display, &info);
@@ -63,6 +46,7 @@ void alloc_dispmanx_window_size(private_handle_t* handle)
 
 void alloc_dispmanx_default_values(private_handle_t* handle)
 {
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     handle->brcm_handle->gl_format = GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE;
     handle->brcm_handle->stride = ALIGN_UP(handle->brcm_handle->window.width, 32);
     handle->brcm_handle->res_type = GRALLOC_PRIV_TYPE_MM_RESOURCE;
@@ -71,12 +55,14 @@ void alloc_dispmanx_default_values(private_handle_t* handle)
 
 void open_display(private_handle_t* handle)
 {
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     handle->brcm_handle->dispman_display = vc_dispmanx_display_open(0);
 }
 
 void write_buffer_dispmanx(private_handle_t* handle)
 {
     //TODO: get image type from private_handle_t
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     VC_IMAGE_TYPE_T type = VC_IMAGE_RGBA565;
     VC_RECT_T dst_rect;
 
@@ -92,6 +78,7 @@ void write_buffer_dispmanx(private_handle_t* handle)
 
 int dispmanx_alloc(private_handle_t* handle)
 {
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     bcm_host_init();
     VC_RECT_T src_rect;
     VC_RECT_T dst_rect;
@@ -129,6 +116,7 @@ int dispmanx_alloc(private_handle_t* handle)
 
 int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int h, void** vaddr)
 {
+    ALOGD("%s:%d %p usage=%d  l=%d  t=%d,  w=%d,  h=%d,  vaddr=%p",__FUNCTION__,__LINE__,handle,usage,  l,  t,  w,  h,  vaddr);
     // this is called when a buffer is being locked for software
     // access. in thin implementation we have nothing to do since
     // not synchronization with the h/w is needed.
@@ -147,6 +135,7 @@ int dispmanx_lock(private_handle_t* handle, int usage, int l, int t, int w, int 
 
 int dispmanx_unlock(private_handle_t* handle)
 {
+    ALOGD("%s:%d %p",__FUNCTION__,__LINE__,handle);
     // flush the data cache
     write_buffer_dispmanx(handle);
 
