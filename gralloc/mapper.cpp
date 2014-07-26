@@ -24,15 +24,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <utils/Log.h>
+#include <cutils/log.h>
 #include <cutils/atomic.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
 #include "gralloc_priv.h"
-
-#include "gralloc_dispmanx.h"
 
 
 /* desktop Linux needs a little help with gettid() */
@@ -49,7 +47,6 @@ static int gralloc_map(gralloc_module_t const* module,
         buffer_handle_t handle,
         void** vaddr)
 {
-    ALOGD("MAP");
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         size_t size = hnd->size;
@@ -64,8 +61,6 @@ static int gralloc_map(gralloc_module_t const* module,
         //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
     }
     *vaddr = (void*)hnd->base;
-
-    dispmanx_alloc(hnd);
     return 0;
 }
 
@@ -87,15 +82,14 @@ static int gralloc_unmap(gralloc_module_t const* module,
 
 /*****************************************************************************/
 
-static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
+static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER;
 
 /*****************************************************************************/
 
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGD("register buffer!");
-    if (private_handle_t::validate(handle) < 0)
+   if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     // if this handle was created in this process, then we keep it as is.
@@ -111,17 +105,13 @@ int gralloc_register_buffer(gralloc_module_t const* module,
 int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGD("unregister buffer!");
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    // never unmap buffers that were created in this process
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (hnd->pid != getpid()) {
-        if (hnd->base) {
-            gralloc_unmap(module, handle);
-        }
-    }
+    if (hnd->base)
+        gralloc_unmap(module, handle);
+
     return 0;
 }
 
@@ -160,23 +150,17 @@ int gralloc_lock(gralloc_module_t const* module,
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-
-    if((GRALLOC_USAGE_SW_WRITE_MASK | GRALLOC_USAGE_SW_READ_MASK) & hnd->flags) {
-        *vaddr = (void*)hnd->base;
-    }
-    return dispmanx_lock(hnd, usage, l, t, w, h, vaddr);
+    *vaddr = (void*)hnd->base;
+    return 0;
 }
 
-int gralloc_unlock(gralloc_module_t const* module, 
+int gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
     // we're done with a software buffer. nothing to do in this
     // implementation. typically this is used to flush the data cache.
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
-
-    private_handle_t* hnd = (private_handle_t*)handle;
-    dispmanx_unlock(hnd);
-
     return 0;
 }

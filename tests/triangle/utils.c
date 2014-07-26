@@ -138,8 +138,8 @@ EGLBoolean WinCreate(ESContext *esContext, const char *title)
    }
    
    // You can hardcode the resolution here:
-   display_width = 1920;
-   display_height = 1080;
+   //display_width = 1920;
+   //display_height = 1080;
 
    dst_rect.x = 0;
    dst_rect.y = 0;

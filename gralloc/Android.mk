@@ -15,19 +15,24 @@
 
 LOCAL_PATH := $(call my-dir)
 
+# HAL module implemenation stored in
+# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
-$(info $(LOCAL_C_INCLUDES))
+
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := libcutils liblog libdl
-LOCAL_STATIC_LIBRARIES := libbcm_host_static
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLES_bcm2708
+
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
-	mapper.cpp \
-	gralloc_dispmanx.cpp
+	mapper.cpp
 	
 LOCAL_MODULE := gralloc.bcm2708
-LOCAL_CFLAGS += -DLOG_TAG=\"gralloc.2708\"
-LOCAL_MODULE_TAGS := optional
+LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
+
+ifeq ($(BOARD_HTC_3D_SUPPORT),true)
+   LOCAL_CFLAGS += -DHTC_3D_SUPPORT
+endif
+
 include $(BUILD_SHARED_LIBRARY)

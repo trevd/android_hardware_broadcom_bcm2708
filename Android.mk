@@ -4,7 +4,8 @@ bcm2708_dirs := \
 		prebuilts \
 		libEGL \
 		hwcomposer \
-		tests/triangle
+		gralloc \
+		#tests/triangle
 		
 
 include $(call all-named-subdir-makefiles,$(bcm2708_dirs))

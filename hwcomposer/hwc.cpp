@@ -24,7 +24,12 @@
 
 #include <hardware/hwcomposer.h>
 
+
+
 #include <EGL/egl.h>
+
+
+#include "gralloc_priv.h"
 #include <linux/fb.h>
 
 /*****************************************************************************/
@@ -34,6 +39,8 @@ struct hwc_context_t {
     /* our private state goes below here */
     pthread_t               vsync_thread;
     hwc_procs_t *procs;
+    const private_module_t  *gralloc_module;
+     alloc_device_t          *alloc_device;
     int fb_fd ;
     uint32_t vsync_period;
     uint32_t xres;
@@ -161,12 +168,13 @@ static int hwc_set(hwc_composer_device_1_t *device,size_t numDisplays, hwc_displ
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
+     return 0;
     ALOGD("%s:%d numDisplays=%d displays=%p displays[0]->dpy=0x%x displays[0]->sur=%p", __FUNCTION__,__LINE__,numDisplays,displays,displays[0]->dpy,displays[0]->sur);
     EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[0]->dpy, (EGLSurface)displays[0]->sur);
     if (!sucess) {
         return HWC_EGL_ERROR;
     }
-    return 0;
+   
 }
 static int hwc_event_control(struct hwc_composer_device_1 *device, int dpy,int event, int enabled)
 {
@@ -287,6 +295,7 @@ static void hwc_register_procs(hwc_composer_device_1_t *dev, hwc_procs_t const* 
 
 static int hwc_device_close(struct hw_device_t *device)
 {
+    ALOGD("%s",__FUNCTION__);
     struct hwc_context_t* dev = (struct hwc_context_t*)device;
     pthread_kill(dev->vsync_thread, SIGTERM);
     pthread_join(dev->vsync_thread, NULL);
@@ -302,6 +311,7 @@ static int hwc_device_close(struct hw_device_t *device)
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
+     ALOGD("%s",__FUNCTION__);
     int status = -EINVAL;
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
         struct hwc_context_t *dev;
@@ -328,6 +338,20 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 	dev->device.getDisplayConfigs = hwc_get_display_configs;
 	dev->device.getDisplayAttributes = hwc_get_display_attributes;
 	
+	if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
+            (const struct hw_module_t **)&dev->gralloc_module)) {
+	    ALOGE("failed to get gralloc hw module");
+	    ret = -EINVAL;
+	    goto err_get_module;
+	}
+
+	if (gralloc_open((const hw_module_t *)dev->gralloc_module,
+		&dev->alloc_device)) {
+	    ALOGE("failed to open gralloc");
+	    ret = -EINVAL;
+	    goto err_get_module;
+	}
+		
         *device = &dev->device.common;
 	
 	// setup a vsync worker thread

@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 
 #include <cutils/ashmem.h>
-#include <utils/Log.h>
+#include <cutils/log.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <utils/Log.h>
+#include <cutils/log.h>
 #include <cutils/atomic.h>
 
 #if HAVE_ANDROID_OS
@@ -39,8 +39,6 @@
 
 #include "gralloc_priv.h"
 #include "gr.h"
-
-#include "gralloc_dispmanx.h"
 
 /*****************************************************************************/
 
@@ -140,31 +138,32 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if (module->framebuffer) {
         return 0;
     }
-        
-    char const * const device_template[] = {
-            "/dev/graphics/fb%u",
-            "/dev/fb%u",
-            0 };
-
+    ALOGD("%s", __FUNCTION__);    
+    
     int fd = -1;
-    int i=0;
-    char name[64];
+    
 
-    while ((fd==-1) && device_template[i]) {
-        snprintf(name, 64, device_template[i], 0);
-        fd = open(name, O_RDWR, 0);
-        i++;
+    fd = open( "/dev/graphics/fb0", O_RDWR, 0);
+    if (fd < 0){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
     }
-    if (fd < 0)
-        return -errno;
 
     struct fb_fix_screeninfo finfo;
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
-        return -errno;
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
+    }
+     
 
     struct fb_var_screeninfo info;
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
-        return -errno;
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
+    }
 
     info.reserved[0] = 0;
     info.reserved[1] = 0;
@@ -194,8 +193,11 @@ int mapFrameBufferLocked(struct private_module_t* module)
                 info.yres_virtual, info.yres*2);
     }
 
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
-        return -errno;
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
+    }
 
     uint64_t  refreshQuotient =
     (
@@ -255,11 +257,17 @@ int mapFrameBufferLocked(struct private_module_t* module)
     );
 
 
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
-        return -errno;
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
+    }
 
-    if (finfo.smem_len <= 0)
-        return -errno;
+    if (finfo.smem_len <= 0){
+	int en = errno;
+	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
+        return -en;
+    }
 
 
     module->flags = flags;
@@ -276,7 +284,6 @@ int mapFrameBufferLocked(struct private_module_t* module)
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
     module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
-    dispmanx_alloc(module->framebuffer);
 
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
@@ -288,7 +295,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     }
     module->framebuffer->base = intptr_t(vaddr);
     memset(vaddr, 0, fbSize);
-
+    ALOGD("%s:%d succeeded", __FUNCTION__,__LINE__);
     return 0;
 }
 
@@ -296,7 +303,9 @@ static int mapFrameBuffer(struct private_module_t* module)
 {
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
+     
     pthread_mutex_unlock(&module->lock);
+    ALOGD("%s err = %d", __FUNCTION__,err);    
     return err;
 }
 
@@ -316,11 +325,6 @@ int fb_device_open(hw_module_t const* module, const char* name,
 {
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
-        alloc_device_t* gralloc_device;
-        status = gralloc_open(module, &gralloc_device);
-        if (status < 0)
-            return status;
-
         /* initialize our state here */
         fb_context_t *dev = (fb_context_t*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));

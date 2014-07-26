@@ -7,7 +7,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 LOCAL_MODULE := libGLES_bcm2708
-LOCAL_SHARED_LIBRARIES := liblog libdl 
+LOCAL_SHARED_LIBRARIES := liblog libdl libhardware
 LOCAL_WHOLE_STATIC_LIBRARIES := libkhrn_static
 LOCAL_MODULE_TAGS:= optional
 LOCAL_MODULE_PATH:= $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/egl

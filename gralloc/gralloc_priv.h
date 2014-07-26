@@ -28,17 +28,31 @@
 #include <cutils/native_handle.h>
 
 #include <linux/fb.h>
+#include <linux/fb.h>
+#include <eglplatform.h>
+#include <vc_dispmanx_types.h>
+#include <vc_dispmanx.h>
+#include <bcm_host.h>
 
-#include "gralloc_brcm_def.h"
 
-#include <utils/Log.h>
+#ifndef ALIGN_UP
+#define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
+#endif
+#define GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE 0;
 
-/*****************************************************************************/
+typedef void *EGLImageKHR;
 
-typedef struct private_module_t private_module_t;
-typedef struct private_handle_t private_handle_t;
+   
+
+        #define GRALLOC_PRIV_TYPE_MM_RESOURCE  0
+	 #define GRALLOC_PRIV_TYPE_GL_RESOURCE  1
+
+struct private_module_t;
+struct private_handle_t  ;
 
 struct private_module_t {
+ 
+    
     gralloc_module_t base;
 
     struct private_handle_t* framebuffer;
@@ -47,8 +61,17 @@ struct private_module_t {
     uint32_t bufferMask;
     pthread_mutex_t lock;
     buffer_handle_t currentBuffer;
-    int pmem_master;
-    void* pmem_master_base;
+
+  
+    EGLImageKHR egl_image;
+    DISPMANX_DISPLAY_HANDLE_T dispman_display;
+    DISPMANX_RESOURCE_HANDLE_T dispman_resource;
+    EGL_DISPMANX_WINDOW_T* window;
+   
+    int res_type;
+    int gl_format;
+    int stride;
+    int pixelformat;   
 
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;
@@ -70,25 +93,19 @@ struct private_handle_t {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001
     };
 
-    enum {
-        READ_LOCK = 0x00000001,
-        WRITE_LOCK = 0x00000002
-    };
 
     // file-descriptors
     int     fd;
     // ints
     int     magic;
     int     flags;
-    int     lock;
     int     size;
     int     offset;
+  
 
     // FIXME: the attributes below should be out-of-line
     int     base;
     int     pid;
-
-    struct gralloc_private_handle_t* brcm_handle;
 
 #ifdef __cplusplus
     static const int sNumInts = 6;
@@ -96,8 +113,8 @@ struct private_handle_t {
     static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), lock(0), size(size), offset(0),
-        base(0), pid(getpid()), brcm_handle(0)
+        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
+        base(0), pid(getpid())
     {
         version = sizeof(native_handle);
         numInts = sNumInts;

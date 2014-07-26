@@ -6,8 +6,7 @@ PRODUCT_PACKAGES += \
 	libGLES_bcm2708
 	
 # Gralloc
-#PRODUCT_PACKAGES += \
-#	gralloc.bcm2708
+PRODUCT_PACKAGES += gralloc.bcm2708
 
 # HWComposer
 PRODUCT_PACKAGES += \
