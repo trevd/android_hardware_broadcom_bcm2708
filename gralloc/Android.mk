@@ -20,7 +20,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLES_bcm2708
+LOCAL_SHARED_LIBRARIES := liblog libcutils libEGL libvc4
 
 
 LOCAL_SRC_FILES := 	\

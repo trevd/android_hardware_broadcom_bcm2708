@@ -29,7 +29,7 @@
 #include <EGL/egl.h>
 
 
-#include "gralloc_priv.h"
+#include "gralloc_private.h"
 #include <linux/fb.h>
 
 /*****************************************************************************/
@@ -316,7 +316,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
         struct hwc_context_t *dev;
         dev = (hwc_context_t*)malloc(sizeof(*dev));
-
+	int ret =-1 ;
         /* initialize our state here */
         memset(dev, 0, sizeof(*dev));
 
@@ -360,6 +360,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 	
         status = 0;
     }
+err_get_module:
     return status;
 }
 

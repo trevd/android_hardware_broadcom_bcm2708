@@ -92,10 +92,14 @@ static void check_default(private_module_t* m )
 
        * it is expected that Open WFC will provide a proper mechanism in the near future
        */
-     
+       bcm_host_init();
+	if ( m->window ) {
+	    ALOGW("Dispmanx Window Already Initialized : %p",m->window); 
+	    return;
+	}
 	
       
-	bcm_host_init();
+	
 	 
 	static EGL_DISPMANX_WINDOW_T nativewindow;
 
@@ -133,16 +137,15 @@ static void check_default(private_module_t* m )
          
 	
 	 uint32_t dummy = 0;
-	//dispman_resource = vc_dispmanx_resource_create(VC_IMAGE_RGBA32, dst_rect.width,
-        //    dst_rect.height, &dummy);
+	dispman_resource = vc_dispmanx_resource_create((VC_IMAGE_TYPE_T)VC_IMAGE_RGBA32, dst_rect.width,dst_rect.height, &dummy);
 	dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
-						0/*layer*/, &dst_rect, 0/*src*/,
+						0/*layer*/, &dst_rect, dispman_resource,
 						&src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
 	
 	  
 	  vc_dispmanx_update_submit_sync( dispman_update );
 	  m->gl_format = GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE;
-    m->stride = ALIGN_UP(display_width, 32);
+	m->stride = ALIGN_UP(display_width, 32);
 	m->res_type = GRALLOC_PRIV_TYPE_GL_RESOURCE;
 	m->egl_image = (EGLImageKHR) 0xBADF00D;
 	m->dispman_display = dispman_display;
@@ -186,7 +189,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 {
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
-    ALOGD("%s:%d", __FUNCTION__,__LINE__);  
+    //ALOGD("%s:%d", __FUNCTION__,__LINE__);  
     // allocate the framebuffer
     if (m->framebuffer == NULL) {
         // initialize the framebuffer, the framebuffer is mapped once
@@ -196,7 +199,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
             return err;
         }
     }
-    ALOGD("%s:%d", __FUNCTION__,__LINE__);  
+    //ALOGD("%s:%d", __FUNCTION__,__LINE__);  
     const uint32_t bufferMask = m->bufferMask;
     const uint32_t numBuffers = m->numBuffers;
     const size_t bufferSize = m->finfo.line_length * m->info.yres;
@@ -220,7 +223,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
     // find a free slot
-    ALOGD("%s:%d", __FUNCTION__,__LINE__);  
+    //ALOGD("%s:%d", __FUNCTION__,__LINE__);  
     for (uint32_t i=0 ; i<numBuffers ; i++) {
         if ((bufferMask & (1LU<<i)) == 0) {
             m->bufferMask |= (1LU<<i);
@@ -232,7 +235,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     hnd->base = vaddr;
     hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
-    ALOGD("%s:%d", __FUNCTION__,__LINE__);  
+    //ALOGD("%s:%d", __FUNCTION__,__LINE__);  
     return 0;
 }
 
@@ -252,6 +255,7 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
 {
     int err = 0;
     int fd = -1;
+    ALOGD("%s:%d", __FUNCTION__,__LINE__);
 
     size = roundUpToPageSize(size);
     
@@ -283,6 +287,8 @@ static int gralloc_alloc(alloc_device_t* dev,
         buffer_handle_t* pHandle, int* pStride)
 {
     ALOGI("%s",__FUNCTION__);
+        private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
+    check_default(m);
     if (!pHandle || !pStride)
         return -EINVAL;
     
@@ -452,6 +458,10 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 {
     ALOGI("%s",__FUNCTION__);
     int status = -EINVAL;
+    private_module_t* m = (private_module_t*)module;
+	check_default(m);
+    ALOGD("%s  m=%p m->window=%p",__FUNCTION__, m, m->window);
+	
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
@@ -469,9 +479,6 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         dev->device.free    = gralloc_free;
 	
         *device = &dev->device.common;
-	private_module_t* m = (private_module_t*)module;
-	check_default(m);
-	ALOGI("%s  m=%p m->window=%p",__FUNCTION__, m, m->window);
 	
 	
         status = 0;
@@ -480,3 +487,28 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
     }
     return status;
 }
+
+/* Called on first dlopen() */
+/*static void __attribute__((constructor)) gralloc_constructor(void)
+{
+	
+	int err;
+
+	ALOGD("%s:%d",__FUNCTION__,__LINE__);
+	PVR_ASSERT(!gbGraphicsHALInitialized && psPrivateData->hMutex == 0);
+
+	err = OpenPVRServices(psPrivateData);
+	if(err)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to open services (err=%d)",
+								__func__, err));
+		return;
+	}
+
+	PVRSRVCreateMutex(&psPrivateData->hMutex);
+
+	PVR_DPF((PVR_DBG_MESSAGE, "%s: Graphics HAL loaded (err=%d)",
+							  __func__, err));
+	gbGraphicsHALInitialized = IMG_TRUE;
+}
+*/

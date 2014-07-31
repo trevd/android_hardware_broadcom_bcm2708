@@ -88,7 +88,7 @@ typedef void *EGLNativeDisplayType;
  * as void* for now, in case changing it would cause problems
  */
 #ifndef DISDEF 
-#defin DISDEF
+#define DISDEF
 typedef struct {
    DISPMANX_ELEMENT_HANDLE_T element;
    int width;   /* This is necessary because dispmanx elements are not queriable. */
