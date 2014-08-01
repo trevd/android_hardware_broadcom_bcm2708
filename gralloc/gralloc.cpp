@@ -33,6 +33,7 @@
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
+#include <vmcs_host/vc_dispmanx.h>
 
 #include "gralloc_priv.h"
 #include "gr.h"
