@@ -29,7 +29,6 @@
 #include <EGL/egl.h>
 
 
-#include "gralloc_private.h"
 #include <linux/fb.h>
 
 /*****************************************************************************/
@@ -39,16 +38,7 @@ struct hwc_context_t {
     /* our private state goes below here */
     pthread_t               vsync_thread;
     hwc_procs_t *procs;
-    const private_module_t  *gralloc_module;
-     alloc_device_t          *alloc_device;
-    int fb_fd ;
-    uint32_t vsync_period;
-    uint32_t xres;
-    uint32_t yres;
-    uint32_t stride;
-    float xdpi;
-    float ydpi;
-    float fps;
+    int blank ;
     
 };
 
@@ -72,57 +62,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 };
 
 /*****************************************************************************/
-static int hwc_create_display_attributes(struct hwc_context_t *dev){
-    
-    ALOGD("%s:%d creating display attributes", __FUNCTION__,__LINE__);
-    dev->fb_fd = open("/dev/graphics/fb0", O_RDWR);
-    
-    int errornum = 0 ; 
-    if(dev->fb_fd == -1){
-	errornum = errno ;
-	ALOGE("%s:%d cannot open framebuffer device", __FUNCTION__,__LINE__);
-	goto exit_with_error;
-    }
-    
-    struct fb_var_screeninfo vinfo;
-    if (ioctl(dev->fb_fd, FBIOGET_VSCREENINFO, &vinfo) == -1){
-	errornum = errno ;
-	ALOGE("%s:%d FBIOGET_VSCREENINFO failed for framebuffer fb_fd=%d err=%d %s", __FUNCTION__,__LINE__,dev->fb_fd,errornum,strerror(errornum));
-	goto exit_with_error;
-    }
-    if (int(vinfo.width) <= 0 || int(vinfo.height) <= 0) {
-	// the driver doesn't return that information
-        // default to 160 dpi
-        vinfo.width  = ((vinfo.xres * 25.4f)/160.0f + 0.5f);
-        vinfo.height = ((vinfo.yres * 25.4f)/160.0f + 0.5f);
-    }
-    dev->xdpi = (vinfo.xres * 25.4f) / vinfo.width;
-    dev->ydpi = (vinfo.yres * 25.4f) / vinfo.height;
-    dev->xres = vinfo.xres;
-    dev->yres = vinfo.yres;
-    dev->fps  = vinfo.reserved[3] & 0xFF;
-    
-    struct fb_fix_screeninfo finfo;
-    if (ioctl(dev->fb_fd, FBIOGET_FSCREENINFO, &finfo) == -1){
-       errornum = errno ;
-	ALOGE("%s:%d FBIOGET_FSCREENINFO failed for framebuffer fb_fd=%d err=%d %s", __FUNCTION__,__LINE__,dev->fb_fd,errornum,strerror(errornum));
-	goto exit_with_error;
-    }
-    if (finfo.smem_len <= 0){
-	errornum = EINVAL;
-	ALOGE("%s:%d Invalid fix_info.smem_len ( %d ) ", __FUNCTION__,__LINE__,finfo.smem_len);
-        goto exit_with_error;
-    }
-    dev->stride = finfo.line_length /(vinfo.xres/8);
 
-exit_with_error:
-    if(dev->fb_fd != -1) 
-	close(dev->fb_fd);
-    
-    errno = errornum;
-    return errornum;
-    
-}
 static void *hwc_vsync_thread(void *data)
 {
 	return NULL;
@@ -154,26 +94,28 @@ static int hwc_prepare(hwc_composer_device_1_t *device,size_t numDisplays, hwc_d
 {
      ALOGD("%s:%d numDisplays=%d displays=%p", __FUNCTION__,__LINE__,numDisplays,displays);
    
-     if (displays && (displays[0]->flags & HWC_GEOMETRY_CHANGED)) {
+     //if (displays && (displays[0]->flags & HWC_GEOMETRY_CHANGED)) {
         for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
             //dump_layer(&list->hwLayers[i]);
             displays[0]->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
         }
-    }
+    //}
     return 0;
 }
 
 static int hwc_set(hwc_composer_device_1_t *device,size_t numDisplays, hwc_display_contents_1_t** displays)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
-     return 0;
-    ALOGD("%s:%d numDisplays=%d displays=%p displays[0]->dpy=0x%x displays[0]->sur=%p", __FUNCTION__,__LINE__,numDisplays,displays,displays[0]->dpy,displays[0]->sur);
+    // 
+    //ALOGD("%s:%d numDisplays=%d displays=%p displays[0]->dpy=0x%x displays[0]->sur=%p", __FUNCTION__,__LINE__,numDisplays,displays,displays[0]->dpy,displays[0]->sur);
     EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[0]->dpy, (EGLSurface)displays[0]->sur);
     if (!sucess) {
         return HWC_EGL_ERROR;
     }
+    return 0;
    
 }
 static int hwc_event_control(struct hwc_composer_device_1 *device, int dpy,int event, int enabled)
@@ -193,23 +135,44 @@ static int hwc_event_control(struct hwc_composer_device_1 *device, int dpy,int e
 // toggle display on or off
 static int hwc_blank(struct hwc_composer_device_1* device, int disp, int blank)
 {
-    // dummy implementation for now
-    ALOGD("%s:%d disp=%d blank=%d", __FUNCTION__,__LINE__,disp,blank);
-    return 0;
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    struct hwc_context_t* dev = (struct hwc_context_t*)device;
+    int return_value = 0 ; 
+    switch(disp) {
+        case HWC_DISPLAY_PRIMARY:{
+	    ALOGD("%s:%d disp=%d blank=%d", __FUNCTION__,__LINE__,disp,blank);
+	    int fd = open("/dev/graphics/fb0",O_WRONLY); 
+            if ( fd > 0 ) {
+		return_value = ioctl(fd, FBIOBLANK,blank);
+		close(fd) ; 
+	    }else{
+		return_value = -1;
+	    }
+	    dev->blank = blank ; // ( blank ==  FB_BLANK_NORMAL ) ? FB_BLANK_UNBLANK : FB_BLANK_NORMAL ;
+            break;
+	}
+	default:{
+	    break;
+	}
+    }
+    return return_value;
 }
 static int hwc_query(struct hwc_composer_device_1* device,int param, int* value)
 {
-    // dummy implementation for now
-    ALOGD("%s:%d param=%d value=%p", __FUNCTION__,__LINE__,param,value);
+
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     int return_value = 0 ; 
     switch(param){
 	case   HWC_DISPLAY_TYPES_SUPPORTED:
+	    ALOGD("%s:%d param=HWC_DISPLAY_TYPES_SUPPORTED value=%d", __FUNCTION__,__LINE__,(*value));
 	    value[0] = HWC_DISPLAY_PRIMARY_BIT;
 	    break;
 	case  HWC_BACKGROUND_LAYER_SUPPORTED:
+	    ALOGD("%s:%d param=HWC_BACKGROUND_LAYER_SUPPORTED=%d", __FUNCTION__,__LINE__,(*value));
 	    value[0] = 0;
 	    break;
 	default:
+	    ALOGE("%s:%d param=%d value=%d", __FUNCTION__,__LINE__,param,(*value));
 	    return_value = -1; 
 	
     }
@@ -225,6 +188,7 @@ static void hwc_dump(hwc_composer_device_1* device, char *buff, int buff_len)
 static int hwc_get_display_configs(struct hwc_composer_device_1 *device,int disp, uint32_t *configs, size_t *numConfigs)
 {
     // dummy implementation for now
+     ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     int return_value = -EINVAL;
     switch(disp) {
 	case HWC_DISPLAY_PRIMARY:
@@ -245,7 +209,7 @@ static int hwc_get_display_configs(struct hwc_composer_device_1 *device,int disp
 }
 static int hwc_get_display_attributes(struct hwc_composer_device_1 *device,int disp, uint32_t config, const uint32_t *attributes, int32_t *values)
 {
-    // dummy implementation for now
+
     ALOGD("%s:%d disp=%d config=%d attributes=%p values=%p", __FUNCTION__,__LINE__,disp,config,attributes,values);
     struct hwc_context_t* dev = (struct hwc_context_t*)device;
     static const uint32_t DISPLAY_ATTRIBUTES[] = {
@@ -256,33 +220,48 @@ static int hwc_get_display_attributes(struct hwc_composer_device_1 *device,int d
         HWC_DISPLAY_DPI_Y,
         HWC_DISPLAY_NO_ATTRIBUTE,
     };
-
+    hw_module_t const* module;
+    if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module) != 0) {
+	return -EINVAL;
+    }
+    framebuffer_device_t* fb = NULL;
+    if ( framebuffer_open(module, &fb) < 0 ){
+	return -EINVAL;
+    }
+		
     const int NUM_DISPLAY_ATTRIBUTES = (sizeof(DISPLAY_ATTRIBUTES) / sizeof(DISPLAY_ATTRIBUTES)[0]);
 
     for (size_t i = 0; i < NUM_DISPLAY_ATTRIBUTES - 1; i++) {
         switch (attributes[i]) {
         case HWC_DISPLAY_VSYNC_PERIOD:
-            values[i] = dev->vsync_period;
+	    ALOGD("%s HWC_DISPLAY_VSYNC_PERIOD",__FUNCTION__);
+            values[i] =(int32_t) ( 1000000000l /fb->fps );
             break;
         case HWC_DISPLAY_WIDTH:
-            values[i] = dev->xres;
-            ALOGD("%s disp = %d, width = %d",__FUNCTION__, disp,dev->xres);
+            values[i] = fb->width;
+           ALOGD("%s HWC_DISPLAY_WIDTH ",__FUNCTION__);
             break;
         case HWC_DISPLAY_HEIGHT:
-            values[i] = dev->yres;
-            ALOGD("%s disp = %d, height = %d",__FUNCTION__, disp,dev->yres);
+            values[i] = fb->height;
+            ALOGD("%s HWC_DISPLAY_HEIGHT ",__FUNCTION__);
             break;
         case HWC_DISPLAY_DPI_X:
-            values[i] = (int32_t) (dev->xdpi*1000.0);
+	 ALOGD("%s HWC_DISPLAY_DPI_X ",__FUNCTION__);
+            values[i] = fb->xdpi;
             break;
         case HWC_DISPLAY_DPI_Y:
-            values[i] = (int32_t) (dev->ydpi*1000.0);
+	 ALOGD("%s HWC_DISPLAY_DPI_Y ",__FUNCTION__);
+            values[i] = fb->ydpi;
             break;
         default:
             ALOGE("Unknown display attribute %d", attributes[i]);
             return -EINVAL;
         }
     }
+    if( fb != NULL ){
+	framebuffer_close(fb);
+    }
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     return 0;
 
 }
@@ -337,26 +316,13 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 	dev->device.dump = hwc_dump;
 	dev->device.getDisplayConfigs = hwc_get_display_configs;
 	dev->device.getDisplayAttributes = hwc_get_display_attributes;
-	
-	if (hw_get_module(GRALLOC_HARDWARE_MODULE_ID,
-            (const struct hw_module_t **)&dev->gralloc_module)) {
-	    ALOGE("failed to get gralloc hw module");
-	    ret = -EINVAL;
-	    goto err_get_module;
-	}
-
-	if (gralloc_open((const hw_module_t *)dev->gralloc_module,
-		&dev->alloc_device)) {
-	    ALOGE("failed to open gralloc");
-	    ret = -EINVAL;
-	    goto err_get_module;
-	}
-		
+	dev->blank = FB_BLANK_UNBLANK ;
+			
         *device = &dev->device.common;
 	
 	// setup a vsync worker thread
-	hwc_create_vsync_thread(dev);
-	hwc_create_display_attributes(dev);
+	//hwc_create_vsync_thread(dev);
+
 	
         status = 0;
     }
