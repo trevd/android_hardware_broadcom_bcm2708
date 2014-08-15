@@ -28,63 +28,20 @@
 #include <cutils/native_handle.h>
 
 #include <linux/fb.h>
-#include <linux/fb.h>
-#include <eglplatform.h>
-#include <vc_dispmanx_types.h>
-#include <vc_dispmanx.h>
-#include <bcm_host.h>
 
-
-#ifndef ALIGN_UP
-#define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
-#endif
-#define GRALLOC_MAGICS_HAL_PIXEL_FORMAT_OPAQUE 0;
-
-typedef void *EGLImageKHR;
-
-   
-
-        #define GRALLOC_PRIV_TYPE_MM_RESOURCE  0
-	 #define GRALLOC_PRIV_TYPE_GL_RESOURCE  1
+/*****************************************************************************/
 
 struct private_module_t;
-struct private_handle_t  ;
 
-struct private_module_t {
- 
-    
-    gralloc_module_t base;
 
-    struct private_handle_t* framebuffer;
-    uint32_t flags;
-    uint32_t numBuffers;
-    uint32_t bufferMask;
-    pthread_mutex_t lock;
-    buffer_handle_t currentBuffer;
-
-  
-    EGLImageKHR egl_image;
-    DISPMANX_DISPLAY_HANDLE_T dispman_display;
-    DISPMANX_RESOURCE_HANDLE_T dispman_resource;
-    EGL_DISPMANX_WINDOW_T* window;
-   
-    int res_type;
-    int gl_format;
-    int stride;
-    int pixelformat;   
-
-    struct fb_var_screeninfo info;
-    struct fb_fix_screeninfo finfo;
-    float xdpi;
-    float ydpi;
-    float fps;
-};
 
 /*****************************************************************************/
 
 #ifdef __cplusplus
+struct private_handle_t;
 struct private_handle_t : public native_handle {
 #else
+typedef struct private_handle_t private_handle_t;
 struct private_handle_t {
     struct native_handle nativeHandle;
 #endif
@@ -93,7 +50,6 @@ struct private_handle_t {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001
     };
 
-
     // file-descriptors
     int     fd;
     // ints
@@ -101,7 +57,6 @@ struct private_handle_t {
     int     flags;
     int     size;
     int     offset;
-  
 
     // FIXME: the attributes below should be out-of-line
     int     base;
@@ -138,4 +93,22 @@ struct private_handle_t {
 #endif
 };
 
+struct private_module_t {
+    gralloc_module_t base;
+
+    private_handle_t* framebuffer;
+    uint32_t flags;
+    uint32_t numBuffers;
+    uint32_t bufferMask;
+    pthread_mutex_t lock;
+    buffer_handle_t currentBuffer;
+    int pmem_master;
+    void* pmem_master_base;
+
+    struct fb_var_screeninfo info;
+    struct fb_fix_screeninfo finfo;
+    float xdpi;
+    float ydpi;
+    float fps;
+};
 #endif /* GRALLOC_PRIV_H_ */

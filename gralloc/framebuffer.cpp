@@ -138,32 +138,31 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if (module->framebuffer) {
         return 0;
     }
-    ALOGD("%s", __FUNCTION__);    
-    
-    int fd = -1;
-    
+        
+    char const * const device_template[] = {
+            "/dev/graphics/fb%u",
+            "/dev/fb%u",
+            0 };
 
-    fd = open( "/dev/graphics/fb0", O_RDWR, 0);
-    if (fd < 0){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
+    int fd = -1;
+    int i=0;
+    char name[64];
+
+    while ((fd==-1) && device_template[i]) {
+        snprintf(name, 64, device_template[i], 0);
+        fd = open(name, O_RDWR, 0);
+        i++;
     }
+    if (fd < 0)
+        return -errno;
 
     struct fb_fix_screeninfo finfo;
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
-    }
-     
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
+        return -errno;
 
     struct fb_var_screeninfo info;
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
-    }
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
+        return -errno;
 
     info.reserved[0] = 0;
     info.reserved[1] = 0;
@@ -193,11 +192,8 @@ int mapFrameBufferLocked(struct private_module_t* module)
                 info.yres_virtual, info.yres*2);
     }
 
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
-    }
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
+        return -errno;
 
     uint64_t  refreshQuotient =
     (
@@ -257,17 +253,11 @@ int mapFrameBufferLocked(struct private_module_t* module)
     );
 
 
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
-    }
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
+        return -errno;
 
-    if (finfo.smem_len <= 0){
-	int en = errno;
-	ALOGE("%s:%d fd=%d err = %d %s", __FUNCTION__,__LINE__,fd,en,strerror(en));    
-        return -en;
-    }
+    if (finfo.smem_len <= 0)
+        return -errno;
 
 
     module->flags = flags;
@@ -288,14 +278,13 @@ int mapFrameBufferLocked(struct private_module_t* module)
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
 
-    void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    if (vaddr == MAP_FAILED) {
-        ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
-        return -errno;
-    }
-    module->framebuffer->base = intptr_t(vaddr);
-    memset(vaddr, 0, fbSize);
-    ALOGD("%s:%d succeeded", __FUNCTION__,__LINE__);
+    //void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    //if (vaddr == MAP_FAILED) {
+    //    ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
+    //    return -errno;
+    //}
+    //module->framebuffer->base = intptr_t(vaddr);
+    //memset(vaddr, 0, fbSize);
     return 0;
 }
 
@@ -303,9 +292,7 @@ static int mapFrameBuffer(struct private_module_t* module)
 {
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
-     
     pthread_mutex_unlock(&module->lock);
-    ALOGD("%s err = %d", __FUNCTION__,err);    
     return err;
 }
 
