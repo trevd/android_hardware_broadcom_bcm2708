@@ -36,6 +36,7 @@
 
 #include "gralloc_priv.h"
 #include "gr.h"
+#define LOG_NDEBUG 0
 
 /*****************************************************************************/
 
@@ -45,7 +46,7 @@ struct gralloc_context_t {
 };
 
 static int gralloc_alloc_buffer(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle);
+        size_t size, int usage,int format, buffer_handle_t* pHandle);
 
 /*****************************************************************************/
 
@@ -59,6 +60,11 @@ extern int gralloc_lock(gralloc_module_t const* module,
         buffer_handle_t handle, int usage,
         int l, int t, int w, int h,
         void** vaddr);
+	
+extern int gralloc_lock_ycbcr(struct gralloc_module_t const* module,
+            buffer_handle_t handle, int usage,
+            int l, int t, int w, int h,
+            struct android_ycbcr *ycbcr);
 
 extern int gralloc_unlock(gralloc_module_t const* module, 
         buffer_handle_t handle);
@@ -68,6 +74,9 @@ extern int gralloc_register_buffer(gralloc_module_t const* module,
 
 extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
+
+extern int gralloc_perform(struct gralloc_module_t const* module,
+                           int operation, ... );
 
 /*****************************************************************************/
 
@@ -79,19 +88,23 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     base: {
         common: {
             tag: HARDWARE_MODULE_TAG,
-            version_major: 1,
-            version_minor: 0,
+            module_api_version: GRALLOC_MODULE_API_VERSION_0_2,
+            hal_api_version: 0,
             id: GRALLOC_HARDWARE_MODULE_ID,
             name: "Graphics Memory Allocator Module",
             author: "The Android Open Source Project",
-            methods: &gralloc_module_methods
+            methods: &gralloc_module_methods,
+            dso: 0,
         },
         registerBuffer: gralloc_register_buffer,
         unregisterBuffer: gralloc_unregister_buffer,
         lock: gralloc_lock,
         unlock: gralloc_unlock,
+        perform: gralloc_perform,
+        lock_ycbcr: gralloc_lock_ycbcr,
     },
     framebuffer: 0,
+    fbFormat: 0,
     flags: 0,
     numBuffers: 0,
     bufferMask: 0,
@@ -102,8 +115,9 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
 /*****************************************************************************/
 
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle)
+        size_t size, int usage,int format, buffer_handle_t* pHandle)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
 
@@ -125,7 +139,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         // we return a regular buffer which will be memcpy'ed to the main
         // screen when post is called.
         int newUsage = (usage & ~GRALLOC_USAGE_HW_FB) | GRALLOC_USAGE_HW_2D;
-        return gralloc_alloc_buffer(dev, bufferSize, newUsage, pHandle);
+        return gralloc_alloc_buffer(dev, bufferSize, format, newUsage, pHandle);
     }
 
     if (bufferMask >= ((1LU<<numBuffers)-1)) {
@@ -136,7 +150,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     // create a "fake" handles for it
     intptr_t vaddr = intptr_t(m->framebuffer->base);
     private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
-            private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
+            private_handle_t::PRIV_FLAGS_FRAMEBUFFER,m->fbFormat, m->info.xres, m->info.yres);
 
     // find a free slot
     for (uint32_t i=0 ; i<numBuffers ; i++) {
@@ -155,22 +169,23 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 }
 
 static int gralloc_alloc_framebuffer(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle)
+        size_t size, int usage,int format,  buffer_handle_t* pHandle)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
     pthread_mutex_lock(&m->lock);
-    int err = gralloc_alloc_framebuffer_locked(dev, size, usage, pHandle);
+    int err = gralloc_alloc_framebuffer_locked(dev, size, usage,format, pHandle);
     pthread_mutex_unlock(&m->lock);
     return err;
 }
 
 static int gralloc_alloc_buffer(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle)
+        size_t size, int usage, int format,buffer_handle_t* pHandle)
 {
     int err = 0;
     int fd = -1;
-    return 0;
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     size = roundUpToPageSize(size);
     
     fd = ashmem_create_region("gralloc-buffer", size);
@@ -180,9 +195,10 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
     }
 
     if (err == 0) {
-        private_handle_t* hnd = new private_handle_t(fd, size, 0);
-        gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
-                dev->common.module);
+
+	private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
+        private_handle_t* hnd = new private_handle_t(fd, size, 0,format,m->info.xres, m->info.yres);
+	gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(dev->common.module);
         err = mapBuffer(module, hnd);
         if (err == 0) {
             *pHandle = hnd;
@@ -200,13 +216,16 @@ static int gralloc_alloc(alloc_device_t* dev,
         int w, int h, int format, int usage,
         buffer_handle_t* pHandle, int* pStride)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     if (!pHandle || !pStride)
         return -EINVAL;
-    return 0;
+ 
     size_t size, stride;
 
     int align = 4;
     int bpp = 0;
+    private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
+    m->fbFormat = format ;
     switch (format) {
 #ifdef HTC_3D_SUPPORT   // HTC uses mode 96 for 3D camera
         case 96:
@@ -224,6 +243,15 @@ static int gralloc_alloc(alloc_device_t* dev,
         case HAL_PIXEL_FORMAT_RGB_565:
         case HAL_PIXEL_FORMAT_RAW_SENSOR:
             bpp = 2;
+                    break;
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YV12:
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+            bpp = 2;
+            break;
+	case HAL_PIXEL_FORMAT_YCbCr_422_I:
+	    bpp = 4;
             break;
         default:
             return -EINVAL;
@@ -233,11 +261,13 @@ static int gralloc_alloc(alloc_device_t* dev,
     stride = bpr / bpp;
 
     int err;
-    /*if (usage & GRALLOC_USAGE_HW_FB) {
-        err = gralloc_alloc_framebuffer(dev, size, usage, pHandle);
+    if (usage & GRALLOC_USAGE_HW_FB) {
+	ALOGD("%s:%d GRALLOC_USAGE_HW_FB [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
+        err = gralloc_alloc_framebuffer(dev, size, usage, format,pHandle);
     } else {
-        err = gralloc_alloc_buffer(dev, size, usage, pHandle);
-    }*/
+	ALOGD("%s:%d [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
+        err = gralloc_alloc_buffer(dev, size, usage, format,pHandle);
+    }
 
     if (err < 0) {
         return err;
@@ -250,6 +280,7 @@ static int gralloc_alloc(alloc_device_t* dev,
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -276,6 +307,7 @@ static int gralloc_free(alloc_device_t* dev,
 
 static int gralloc_close(struct hw_device_t *dev)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
@@ -289,6 +321,7 @@ static int gralloc_close(struct hw_device_t *dev)
 int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
+    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;

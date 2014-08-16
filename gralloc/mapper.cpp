@@ -187,7 +187,48 @@ int gralloc_lock(gralloc_module_t const* module,
     *vaddr = (void*)hnd->base;
     return 0;
 }
+#ifndef ALIGN_UP
+#define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
+#endif
 
+int gralloc_lock_ycbcr(gralloc_module_t const* module,
+                 buffer_handle_t handle, int usage,
+                 int l, int t, int w, int h,
+                 struct android_ycbcr *ycbcr)
+{
+   
+    
+    private_handle_t* hnd = (private_handle_t*)handle;
+    ALOGD_IF(hnd->pid == getpid(),
+            "Registering a buffer in the process that created it. "
+            "This may cause memory ordering problems.");
+
+    void *vaddr;
+
+    int err = gralloc_map(module, handle, &vaddr);
+    int ystride;
+    if(!err) {
+        //hnd->format holds our implementation defined format
+        //HAL_PIXEL_FORMAT_YCrCb_420_SP is the only one set right now.
+        switch (hnd->format) {
+            case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+                ystride = ALIGN_UP(hnd->width, 16);
+                ycbcr->y  = (void*)hnd->base;
+                ycbcr->cr = (void*)(hnd->base + ystride * hnd->height);
+                ycbcr->cb = (void*)(hnd->base + ystride * hnd->height + 1);
+                ycbcr->ystride = ystride;
+                ycbcr->cstride = ystride;
+                ycbcr->chroma_step = 2;
+                memset(ycbcr->reserved, 0, sizeof(ycbcr->reserved));
+                break;
+            default:
+                ALOGD("%s: Invalid format passed: 0x%x", __FUNCTION__,
+                      hnd->format);
+                err = -EINVAL;
+        }
+    }
+    return err;
+}
 int gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
@@ -196,5 +237,10 @@ int gralloc_unlock(gralloc_module_t const* module,
 
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
+    return 0;
+}
+int gralloc_perform(struct gralloc_module_t const* module,
+                    int operation, ... )
+{
     return 0;
 }

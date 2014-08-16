@@ -266,25 +266,29 @@ int mapFrameBufferLocked(struct private_module_t* module)
     module->xdpi = xdpi;
     module->ydpi = ydpi;
     module->fps = fps;
-
+    if(info.bits_per_pixel == 32) {
+	  module->fbFormat = HAL_PIXEL_FORMAT_RGBX_8888;
+    }else{
+	module->fbFormat = HAL_PIXEL_FORMAT_RGB_565;
+    }
     /*
      * map the framebuffer
      */
 
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
-    module->framebuffer = new private_handle_t(dup(fd), fbSize, 0);
+    module->framebuffer = new private_handle_t(dup(fd), fbSize, 0,module->fbFormat,info.xres, info.yres);
 
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
 
-    //void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    //if (vaddr == MAP_FAILED) {
-    //    ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
-    //    return -errno;
-    //}
-    //module->framebuffer->base = intptr_t(vaddr);
-    //memset(vaddr, 0, fbSize);
+    void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (vaddr == MAP_FAILED) {
+        ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
+        return -errno;
+    }
+    module->framebuffer->base = intptr_t(vaddr);
+    memset(vaddr, 0, fbSize);
     return 0;
 }
 

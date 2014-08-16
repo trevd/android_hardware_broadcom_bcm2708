@@ -57,9 +57,12 @@ struct private_handle_t {
     int     flags;
     int     size;
     int     offset;
-
+        int     format;
+        int     width;
+        int     height;
     // FIXME: the attributes below should be out-of-line
     int     base;
+    
     int     pid;
 
 #ifdef __cplusplus
@@ -67,9 +70,8 @@ struct private_handle_t {
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
-    private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
-        base(0), pid(getpid())
+    private_handle_t(int fd, int size, int flags, int format,int width, int height) :
+        fd(fd), magic(sMagic), flags(flags), size(size),offset(0),format(format), width(width), height(height),base(0), pid(getpid())
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
@@ -97,6 +99,7 @@ struct private_module_t {
     gralloc_module_t base;
 
     private_handle_t* framebuffer;
+    uint32_t fbFormat;
     uint32_t flags;
     uint32_t numBuffers;
     uint32_t bufferMask;
@@ -104,7 +107,7 @@ struct private_module_t {
     buffer_handle_t currentBuffer;
     int pmem_master;
     void* pmem_master_base;
-
+    int     format;
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;
     float xdpi;
