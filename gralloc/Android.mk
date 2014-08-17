@@ -20,18 +20,34 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils
+LOCAL_SHARED_LIBRARIES := liblog libcutils libvc4
+
+opengl_cflags := \
+		-DANDROID -DEGL_EGLEXT_ANDROID_STRUCT_HEADER \
+		-DEGL_SERVER_DISPMANX \
+		-DHAVE_VMCS_CONFIG -DOMX_SKIP64BIT -DOpenVG_EXPORTS \
+		-DTV_SUPPORTED_MODE_NO_DEPRECATED -DUSE_VCHIQ_ARM \
+		-DVCHI_BULK_ALIGN=1 -DVCHI_BULK_GRANULARITY=1 \
+		-D_FILE_OFFSET_BITS=64 -D_HAVE_SBRK -D_LARGEFILE64_SOURCE \
+		-D_LARGEFILE_SOURCE -D_REENTRANT -D__VIDEOCORE4__
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
-	mapper.cpp
+	mapper.cpp \
+	dispmanx.cpp
+
+LOCAL_C_INCLUDES := vendor/broadcom/rpi/opengl/interface/khronos/include/EGL \
+					vendor/broadcom/rpi/opengl/host_applications/linux/libs/bcm_host/include \
+					vendor/broadcom/rpi/opengl \
+					vendor/broadcom/rpi/opengl/interface \
+					vendor/broadcom/rpi/opengl/interface/vmcs_host \
+					vendor/broadcom/rpi/opengl/interface/vcos/pthreads \
+					vendor/broadcom/rpi/opengl/interface/vmcs_host/linux \
 	
 LOCAL_MODULE := gralloc.bcm2708
-LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
+LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" \
+				$(opengl_cflags)
 
-ifeq ($(BOARD_HTC_3D_SUPPORT),true)
-   LOCAL_CFLAGS += -DHTC_3D_SUPPORT
-endif
 
 include $(BUILD_SHARED_LIBRARY)

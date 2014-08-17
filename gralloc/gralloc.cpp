@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#define LOG_NDEBUG 0
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -36,7 +36,8 @@
 
 #include "gralloc_priv.h"
 #include "gr.h"
-#define LOG_NDEBUG 0
+#include "dispmanx.h"
+
 
 /*****************************************************************************/
 
@@ -117,7 +118,12 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         size_t size, int usage,int format, buffer_handle_t* pHandle)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t alloc_device_t* dev=%p",dev);
+    ALOGD("\t size_t size=%d",size);
+    ALOGD("\t int usage=%d",usage);
+    ALOGD("\t int format=%d",format);
+    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
 
@@ -171,7 +177,12 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 static int gralloc_alloc_framebuffer(alloc_device_t* dev,
         size_t size, int usage,int format,  buffer_handle_t* pHandle)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t alloc_device_t* dev=%p",dev);
+    ALOGD("\t size_t size=%d",size);
+    ALOGD("\t int usage=%d",usage);
+    ALOGD("\t int format=%d",format);
+    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
     pthread_mutex_lock(&m->lock);
@@ -183,14 +194,19 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 static int gralloc_alloc_buffer(alloc_device_t* dev,
         size_t size, int usage, int format,buffer_handle_t* pHandle)
 {
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t alloc_device_t* dev=%p",dev);
+    ALOGD("\t size_t size=%d",size);
+    ALOGD("\t int usage=%d",usage);
+    ALOGD("\t int format=%d",format);
+    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
     int err = 0;
     int fd = -1;
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
-    size = roundUpToPageSize(size);
     
-    fd = ashmem_create_region("gralloc-buffer", size);
+        
+    fd = mailbox_memory_alloc(size);
     if (fd < 0) {
-        ALOGE("couldn't create ashmem (%s)", strerror(-errno));
+        ALOGE("couldn't create mailbox_memory_alloc (%s)", strerror(-errno));
         err = -errno;
     }
 
@@ -216,7 +232,14 @@ static int gralloc_alloc(alloc_device_t* dev,
         int w, int h, int format, int usage,
         buffer_handle_t* pHandle, int* pStride)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t alloc_device_t* dev=%p",dev);
+    ALOGD("\t int w=%d",w);
+    ALOGD("\t int h=%d",h);
+    ALOGD("\t int format=%d",format);
+    ALOGD("\t int usage=%d",usage);
+    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
+    ALOGD("\t int* pStride=%p ( Value=%d )",pStride,(*pStride));
     if (!pHandle || !pStride)
         return -EINVAL;
  
@@ -280,7 +303,9 @@ static int gralloc_alloc(alloc_device_t* dev,
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t alloc_device_t* dev=%p",dev);
+    ALOGD("\t buffer_handle_t handle=%p",handle);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -307,7 +332,8 @@ static int gralloc_free(alloc_device_t* dev,
 
 static int gralloc_close(struct hw_device_t *dev)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGD("\t hwc_device_t* dev=%p",dev);
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
@@ -321,7 +347,10 @@ static int gralloc_close(struct hw_device_t *dev)
 int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
-    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+     ALOGD("\n%s:%d ", __FUNCTION__,__LINE__);
+     ALOGD("\t hw_module_t* module=%p",module);
+    ALOGD("\t char* name=%s",name);
+    ALOGD("\t hw_device_t** device=%p",device);
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
