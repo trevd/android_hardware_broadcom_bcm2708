@@ -13,7 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "gralloc-mapper" 
 
+#ifdef LOG_NDEBUG
+#undef LOG_NDEBUG
+#endif
+#define LOG_NDEBUG 0
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
@@ -32,6 +40,7 @@
 
 #include "gralloc_priv.h"
 #include "dispmanx.h"
+#include <user-vcsm.h>
 
 
 /* desktop Linux needs a little help with gettid() */
@@ -44,44 +53,6 @@ pid_t gettid() { return syscall(__NR_gettid);}
 
 /*****************************************************************************/
 
-static int gralloc_map(gralloc_module_t const* module,
-        buffer_handle_t handle,
-        void** vaddr)
-{
-    ALOGD("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
-    ALOGD("\t void** vaddr=%p",vaddr);
-    
-    private_handle_t* hnd = (private_handle_t*)handle;
-    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
-        size_t size = hnd->size;
-                //ALOGD("gralloc_map() succeeded fd=%d, off=%d, size=%d, vaddr=%p",
-        //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
-    }
-    *vaddr = (void*)hnd->base;
-    return 0;
-}
-
-static int gralloc_unmap(gralloc_module_t const* module,
-        buffer_handle_t handle)
-{
-    ALOGD("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
-    private_handle_t* hnd = (private_handle_t*)handle;
-    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
-        void* base = (void*)hnd->base;
-        size_t size = hnd->size;
-        //ALOGD("unmapping from %p, size=%d", base, size);
-        //if (munmap(base, size) < 0) {
-        //    ALOGE("Could not unmap %s", strerror(errno));
-       // }
-    }
-    hnd->base = 0;
-    return 0;
-}
-
 /*****************************************************************************/
 
 static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER;
@@ -91,9 +62,9 @@ static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER;
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGD("\nint %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -133,48 +104,42 @@ int gralloc_register_buffer(gralloc_module_t const* module,
     //   problems. Most modern L1 caches fit that description.
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGD_IF(hnd->pid == getpid(),
-            "Registering a buffer in the process that created it. "
-            "This may cause memory ordering problems.");
+    ALOGV("Registering a buffer in the process that created it. "
+            "This may cause memory ordering problems. pid=%d",hnd->pid);
 
     void *vaddr;
-    return gralloc_map(module, handle, &vaddr);
+    return 0; //gralloc_map(module, handle, &vaddr);
 }
 
 int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGD("\nint %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (hnd->base)
-        gralloc_unmap(module, handle);
+  //  if (hnd->base)
+    //    gralloc_unmap(module, handle);
 
     return 0;
 }
 
-int mapBuffer(gralloc_module_t const* module,
-        private_handle_t* hnd)
-{
-    void* vaddr;
-    return gralloc_map(module, hnd, &vaddr);
-}
+
 
 int terminateBuffer(gralloc_module_t const* module,
         private_handle_t* hnd)
 {
-    ALOGD("\nint %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t private_handle_t* handle=%p",hnd);
-    ALOGD("%s:%d hnd->base=%p", __FUNCTION__,__LINE__,hnd->base);
-    if (hnd->base) {
-        // this buffer was mapped, unmap it now
-        gralloc_unmap(module, hnd);
-    }
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t private_handle_t* handle=%p",hnd);
+    ALOGV("%s:%d hnd->base=0x%x", __FUNCTION__,__LINE__,hnd->base);
+    //if (hnd->base) {
+     //   // this buffer was mapped, unmap it now
+     //   gralloc_unmap(module, hnd);
+   // }
 
     return 0;
 }
@@ -185,16 +150,23 @@ int gralloc_lock(gralloc_module_t const* module,
         void** vaddr)
 {
 
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t int l=%d",l);
+    ALOGV("\t int t=%d",t);
+    ALOGV("\t int w=%d",w);
+    ALOGV("\t int h=%d",h);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    *vaddr = (void*) mailbox_memory_lock(hnd->fd);
-    return 0;
+    *vaddr = (void*) vcsm_lock(hnd->fd);
+    return 0 ;
+  
 }
-#ifndef ALIGN_UP
-#define ALIGN_UP(x,y)  ((x + (y)-1) & ~((y)-1))
-#endif
+
 
 int gralloc_lock_ycbcr(gralloc_module_t const* module,
                  buffer_handle_t handle, int usage,
@@ -203,24 +175,24 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
 {
    
     
-    ALOGD("\nint %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
-    ALOGD("\t int usage=%d",usage);
-    ALOGD("\t int l=%d",l);
-    ALOGD("\t int t=%d",t);
-    ALOGD("\t int w=%d",w);
-    ALOGD("\t int h=%d",h);
-    ALOGD("\t struct android_ycbcr *ycbcr=%p",ycbcr);
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t int l=%d",l);
+    ALOGV("\t int t=%d",t);
+    ALOGV("\t int w=%d",w);
+    ALOGV("\t int h=%d",h);
+    ALOGV("\t struct android_ycbcr *ycbcr=%p",ycbcr);
     
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGD_IF(hnd->pid == getpid(),
+    ALOGV_IF(hnd->pid == getpid(),
             "Registering a buffer in the process that created it. "
             "This may cause memory ordering problems.");
 
     void *vaddr;
 
-    int err = gralloc_map(module, handle, &vaddr);
+    int err = 0 ; //gralloc_map(module, handle, &vaddr);
     int ystride;
     if(!err) {
         //hnd->format holds our implementation defined format
@@ -237,7 +209,7 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
                 memset(ycbcr->reserved, 0, sizeof(ycbcr->reserved));
                 break;
             default:
-                ALOGD("%s: Invalid format passed: 0x%x", __FUNCTION__,
+                ALOGV("%s: Invalid format passed: 0x%x", __FUNCTION__,
                       hnd->format);
                 err = -EINVAL;
         }
@@ -247,24 +219,38 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
 int gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    ALOGD("\nint %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t buffer_handle_t handle=0x%x",handle);
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t gralloc_module_t const* module=%p",module);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
     // we're done with a software buffer. nothing to do in this
     // implementation. typically this is used to flush the data cache.
-	ALOGD("%s:%d ", __FUNCTION__,__LINE__);
+	ALOGV("%s:%d ", __FUNCTION__,__LINE__);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
      private_handle_t* hnd = (private_handle_t*)handle;
-    mailbox_memory_unlock(hnd->fd);
+   vcsm_unlock_hdl( hnd->fd );
     return 0;
 }
 int gralloc_perform(struct gralloc_module_t const* module,
                     int operation, ... )
 {
-    ALOGD("int %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t gralloc_module_t const* module=%p",module);
-    ALOGD("\t int operation=0x%x",operation);
-    
+    //ALOGV("int %s:%d ", __FUNCTION__,__LINE__);
+    //ALOGV("\t gralloc_module_t const* module=%p",module);
+    //ALOGV("\t int operation=0x%x",operation);
+    int res = -EINVAL;
+    va_list args;
+    va_start(args, operation);
+    switch (operation) {
+        case GRALLOC_MODULE_PERFORM_GET_DISPMANX_HANDLE:
+            {
+		EGL_DISPMANX_WINDOW_T** win = va_arg(args, EGL_DISPMANX_WINDOW_T **);
+		
+		*win = get_dispmanx_window_element();
+		return 0;
+		
+		break;
+	    }
+
+	}
     return 0;
 }

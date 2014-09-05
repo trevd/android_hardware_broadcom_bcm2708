@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "gralloc" 
+#ifdef LOG_NDEBUG
+#undef LOG_NDEBUG
+#endif
 #define LOG_NDEBUG 0
 #include <limits.h>
 #include <unistd.h>
@@ -36,7 +43,7 @@
 
 #include "gralloc_priv.h"
 #include "gr.h"
-#include "dispmanx.h"
+#include <user-vcsm.h>
 
 
 /*****************************************************************************/
@@ -118,12 +125,12 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         size_t size, int usage,int format, buffer_handle_t* pHandle)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t alloc_device_t* dev=%p",dev);
-    ALOGD("\t size_t size=%d",size);
-    ALOGD("\t int usage=%d",usage);
-    ALOGD("\t int format=%d",format);
-    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t alloc_device_t* dev=%p",dev);
+    ALOGV("\t size_t size=%d",size);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t int format=%d",format);
+    ALOGV("\t buffer_handle_t* pHandle=%p",pHandle);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
 
@@ -177,12 +184,12 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 static int gralloc_alloc_framebuffer(alloc_device_t* dev,
         size_t size, int usage,int format,  buffer_handle_t* pHandle)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t alloc_device_t* dev=%p",dev);
-    ALOGD("\t size_t size=%d",size);
-    ALOGD("\t int usage=%d",usage);
-    ALOGD("\t int format=%d",format);
-    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t alloc_device_t* dev=%p",dev);
+    ALOGV("\t size_t size=%d",size);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t int format=%d",format);
+    ALOGV("\t buffer_handle_t* pHandle=%p",pHandle);
     private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
     pthread_mutex_lock(&m->lock);
@@ -194,31 +201,33 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 static int gralloc_alloc_buffer(alloc_device_t* dev,
         size_t size, int usage, int format,buffer_handle_t* pHandle)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t alloc_device_t* dev=%p",dev);
-    ALOGD("\t size_t size=%d",size);
-    ALOGD("\t int usage=%d",usage);
-    ALOGD("\t int format=%d",format);
-    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t alloc_device_t* dev=%p",dev);
+    ALOGV("\t size_t size=%d",size);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t int format=%d",format);
+    ALOGV("\t buffer_handle_t* pHandle=%p",pHandle);
     int err = 0;
     int fd = -1;
     
+    //ALIGN_UP(height, 32);
         
-    fd = mailbox_memory_alloc(size);
+    fd = vcsm_malloc(size,"gralloc-buffer");
     if (fd < 0) {
-        ALOGE("couldn't create mailbox_memory_alloc (%s)", strerror(-errno));
-        err = -errno;
+        ALOGE("vcsm_malloc failded (%s)", strerror(-errno));
+	err = -errno;
     }
-
+    ALOGV("%s:%d  vcsm_malloc returns %d\n", __FUNCTION__,__LINE__,fd);
     if (err == 0) {
 
 	private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
         private_handle_t* hnd = new private_handle_t(fd, size, 0,format,m->info.xres, m->info.yres);
 	gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(dev->common.module);
-        err = mapBuffer(module, hnd);
-        if (err == 0) {
-            *pHandle = hnd;
-        }
+	*pHandle = hnd;
+        //err = mapBuffer(module, hnd);
+        //if (err == 0) {
+        //    
+        //}
     }
     
     ALOGE_IF(err, "gralloc failed err=%s", strerror(-err));
@@ -232,14 +241,14 @@ static int gralloc_alloc(alloc_device_t* dev,
         int w, int h, int format, int usage,
         buffer_handle_t* pHandle, int* pStride)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t alloc_device_t* dev=%p",dev);
-    ALOGD("\t int w=%d",w);
-    ALOGD("\t int h=%d",h);
-    ALOGD("\t int format=%d",format);
-    ALOGD("\t int usage=%d",usage);
-    ALOGD("\t buffer_handle_t* pHandle=%p",pHandle);
-    ALOGD("\t int* pStride=%p ( Value=%d )",pStride,(*pStride));
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t alloc_device_t* dev=%p",dev);
+    ALOGV("\t int w=%d",w);
+    ALOGV("\t int h=%d",h);
+    ALOGV("\t int format=%d",format);
+    ALOGV("\t int usage=%d",usage);
+    ALOGV("\t buffer_handle_t* pHandle=%p",pHandle);
+    ALOGV("\t int* pStride=%p ( Value=%d )",pStride,(*pStride));
     if (!pHandle || !pStride)
         return -EINVAL;
  
@@ -285,10 +294,10 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     int err;
     if (usage & GRALLOC_USAGE_HW_FB) {
-	ALOGD("%s:%d GRALLOC_USAGE_HW_FB [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
+	ALOGV("%s:%d GRALLOC_USAGE_HW_FB [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
         err = gralloc_alloc_framebuffer(dev, size, usage, format,pHandle);
     } else {
-	ALOGD("%s:%d [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
+	ALOGV("%s:%d [ usage=0x%x ]", __FUNCTION__,__LINE__,usage);
         err = gralloc_alloc_buffer(dev, size, usage, format,pHandle);
     }
 
@@ -303,9 +312,9 @@ static int gralloc_alloc(alloc_device_t* dev,
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t alloc_device_t* dev=%p",dev);
-    ALOGD("\t buffer_handle_t handle=%p",handle);
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t alloc_device_t* dev=%p",dev);
+    ALOGV("\t buffer_handle_t handle=%p",handle);
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -322,7 +331,9 @@ static int gralloc_free(alloc_device_t* dev,
                 dev->common.module);
         terminateBuffer(module, const_cast<private_handle_t*>(hnd));
     }
-
+    vcsm_free( hnd->fd );
+    //mailbox_memory_free(hnd->fd) ;
+    
     close(hnd->fd);
     delete hnd;
     return 0;
@@ -332,13 +343,14 @@ static int gralloc_free(alloc_device_t* dev,
 
 static int gralloc_close(struct hw_device_t *dev)
 {
-    ALOGD("\nstatic %s:%d ", __FUNCTION__,__LINE__);
-    ALOGD("\t hwc_device_t* dev=%p",dev);
+    ALOGV("\nstatic %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t hwc_device_t* dev=%p",dev);
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
          * all here.
          */
+	  vcsm_exit ();
         free(ctx);
     }
     return 0;
@@ -347,10 +359,10 @@ static int gralloc_close(struct hw_device_t *dev)
 int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
-     ALOGD("\n%s:%d ", __FUNCTION__,__LINE__);
-     ALOGD("\t hw_module_t* module=%p",module);
-    ALOGD("\t char* name=%s",name);
-    ALOGD("\t hw_device_t** device=%p",device);
+    ALOGV("\n%s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t hw_module_t* module=%p",module);
+    ALOGV("\t char* name=%s",name);
+    ALOGV("\t hw_device_t** device=%p",device);
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
@@ -369,6 +381,14 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         dev->device.free    = gralloc_free;
 
         *device = &dev->device.common;
+	//get_dispmanx_window_element();
+	
+	if ( vcsm_init() == -1 )
+	{
+	    ALOGE( "Cannot initialize smem device" );
+	    return -1;
+	}
+	
         status = 0;
     } else {
         status = fb_device_open(module, name, device);

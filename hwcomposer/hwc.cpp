@@ -15,20 +15,12 @@
  */
 
 #include <hardware/hardware.h>
-
 #include <fcntl.h>
 #include <errno.h>
-
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
 #include <hardware/hwcomposer.h>
-
-
-
 #include <EGL/egl.h>
-
-
 #include <linux/fb.h>
 
 /*****************************************************************************/
@@ -78,8 +70,8 @@ static int hwc_create_vsync_thread(struct hwc_context_t *dev)
     return return_value;
 }
 static void dump_layer(hwc_layer_1_t const* l) {
-    ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
-            l->compositionType, l->flags, l->handle, l->transform, l->blending,
+    ALOGD("\ttype=%d, acquireFenceFd=%d releaseFenceFd=%d flags=%08x, handle=%p, tr=%02x, blend=%04x,sourceCrop={%d,%d,%d,%d},displayFrame={%d,%d,%d,%d}",
+            l->compositionType, l->acquireFenceFd, l->releaseFenceFd, l->flags, l->handle, l->transform, l->blending,
             l->sourceCrop.left,
             l->sourceCrop.top,
             l->sourceCrop.right,
@@ -95,15 +87,16 @@ static int hwc_prepare(hwc_composer_device_1_t *device,size_t numDisplays, hwc_d
      ALOGD("%s:%d numDisplays=%d displays=%p ", __FUNCTION__,__LINE__,numDisplays,displays);
    
      //if (displays && (displays[0]->flags & HWC_GEOMETRY_CHANGED)) {
-	while (numDisplays){
-	    ALOGD("%s:%d numDisplays=%d displays[0]=%p ", __FUNCTION__,__LINE__,numDisplays,displays[numDisplays]);
-	    numDisplays--;
-	    for (size_t i=0 ; i<displays[numDisplays]->numHwLayers ; i++) {
-		//dump_layer(&list->hwLayers[i]);
-		displays[numDisplays]->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+	//while (numDisplays){
+	  //  numDisplays--;
+	    ALOGD("%s:%d numDisplays=%d displays[0]=%p displays[0]->numHwLayers=%d", __FUNCTION__,__LINE__,numDisplays,displays[0],displays[0]->numHwLayers);
+	    
+	    for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
+		dump_layer(&displays[0]->hwLayers[i]);
+		displays[0]->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
 	    }
 	    
-	}
+//	}
     //}
     return 0;
 }
@@ -111,20 +104,22 @@ static int hwc_prepare(hwc_composer_device_1_t *device,size_t numDisplays, hwc_d
 static int hwc_set(hwc_composer_device_1_t *device,size_t numDisplays, hwc_display_contents_1_t** displays)
 {
     ALOGD("%s:%d ", __FUNCTION__,__LINE__);
-    while (numDisplays){
-	
-	ALOGD("%s:%d displays[0]=%p dpy=%d sur=%p", __FUNCTION__,__LINE__,displays[0],displays[0]->dpy,displays[0]->sur);
-	 numDisplays--;
-	EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[numDisplays]->dpy, (EGLSurface)displays[numDisplays]->sur);
+   // while (numDisplays){
+	numDisplays--;
+	ALOGD("%s:%d displays[0]=%p dpy=%d sur=%p numDisplays=%d numHwLayers=%d", __FUNCTION__,__LINE__,displays[0],displays[0]->dpy,displays[0]->sur,numDisplays,displays[0]->numHwLayers);
+	for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
+	    dump_layer(&displays[0]->hwLayers[i]);
+	}
+
+	EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[0]->dpy, (EGLSurface)displays[0]->sur);
 	 if (!sucess) {
 	    ALOGD("%s:%d ", __FUNCTION__,__LINE__);
 	    return HWC_EGL_ERROR;
 	}
+		numDisplays--; 
 
-    }
-    //for (size_t i=0 ; i<list->numHwLayers ; i++) {
-    //    dump_layer(&list->hwLayers[i]);
     //}
+    
     // 
     
     //ALOGD("%s:%d numDisplays=%d displays=%p displays[0]->dpy=0x%x displays[0]->sur=%p", __FUNCTION__,__LINE__,numDisplays,displays,displays[0]->dpy,displays[0]->sur);

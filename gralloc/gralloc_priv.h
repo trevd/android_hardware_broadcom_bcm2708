@@ -31,6 +31,16 @@
 
 /*****************************************************************************/
 
+
+enum {
+    /* Gralloc perform enums
+    */
+    GRALLOC_MODULE_PERFORM_GET_DISPMANX_HANDLE = 1,
+    GRALLOC_MODULE_PERFORM_GET_STRIDE,
+    GRALLOC_MODULE_PERFORM_GET_CUSTOM_STRIDE_FROM_HANDLE,
+};
+
+
 struct private_module_t;
 
 
@@ -105,8 +115,6 @@ struct private_module_t {
     uint32_t bufferMask;
     pthread_mutex_t lock;
     buffer_handle_t currentBuffer;
-    int pmem_master;
-    void* pmem_master_base;
     int     format;
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;

@@ -13,7 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "gralloc-framebuffer" 
+#ifdef LOG_NDEBUG
+#undef LOG_NDEBUG
+#endif
+#define LOG_NDEBUG 0
 #include <sys/mman.h>
 
 #include <dlfcn.h>
@@ -32,12 +39,13 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
+#include <GLES/gl.h>
 #if HAVE_ANDROID_OS
 #include <linux/fb.h>
 #endif
 
 #include "gralloc_priv.h"
+#include "dispmanx.h"
 #include "gr.h"
 
 /*****************************************************************************/
@@ -56,10 +64,19 @@ struct fb_context_t {
 };
 
 /*****************************************************************************/
+static int fb_compositionComplete(struct framebuffer_device_t* dev)
+{
+    // TODO: Properly implement composition complete callback
+    glFinish();
 
+    return 0;
+}
 static int fb_setSwapInterval(struct framebuffer_device_t* dev,
             int interval)
 {
+    ALOGV("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t framebuffer_device_t* dev=%p",dev);
+    ALOGV("\t int interval=%d",interval);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
         return -EINVAL;
@@ -70,6 +87,12 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
 static int fb_setUpdateRect(struct framebuffer_device_t* dev,
         int l, int t, int w, int h)
 {
+    ALOGV("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t framebuffer_device_t* dev=%p",dev);
+    ALOGV("\t int l=%d",l);
+    ALOGV("\t int t=%d",t);
+    ALOGV("\t int w=%d",w);
+    ALOGV("\t int w=%d",h);
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
         
@@ -84,6 +107,9 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
+    ALOGV("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t framebuffer_device_t* dev=%p",dev);
+    ALOGV("\t buffer_handle_t buffer=%p",buffer);
     if (private_handle_t::validate(buffer) < 0)
         return -EINVAL;
 
@@ -134,6 +160,8 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
 int mapFrameBufferLocked(struct private_module_t* module)
 {
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t private_module_t* module=%p",module);
     // already initialized...
     if (module->framebuffer) {
         return 0;
@@ -294,6 +322,8 @@ int mapFrameBufferLocked(struct private_module_t* module)
 
 static int mapFrameBuffer(struct private_module_t* module)
 {
+    ALOGV("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t private_module_t* module=%p",module);
     pthread_mutex_lock(&module->lock);
     int err = mapFrameBufferLocked(module);
     pthread_mutex_unlock(&module->lock);
@@ -304,6 +334,8 @@ static int mapFrameBuffer(struct private_module_t* module)
 
 static int fb_close(struct hw_device_t *dev)
 {
+    ALOGV("\nstatic int %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t hw_device_t* dev=%p",dev);
     fb_context_t* ctx = (fb_context_t*)dev;
     if (ctx) {
         free(ctx);
@@ -314,6 +346,11 @@ static int fb_close(struct hw_device_t *dev)
 int fb_device_open(hw_module_t const* module, const char* name,
         hw_device_t** device)
 {
+    ALOGV("\nint %s:%d ", __FUNCTION__,__LINE__);
+    ALOGV("\t hw_module_t* const module=%p",module);
+    ALOGV("\t const char* name=%s",name);
+    ALOGV("\t hw_device_t** device=%p",device);
+
     int status = -EINVAL;
     if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
         /* initialize our state here */
@@ -328,6 +365,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.setSwapInterval = fb_setSwapInterval;
         dev->device.post            = fb_post;
         dev->device.setUpdateRect = 0;
+	dev->device.compositionComplete = fb_compositionComplete;
 
         private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);
@@ -347,7 +385,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.minSwapInterval) = 1;
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
             *device = &dev->device.common;
+	    //get_egl_image(&dev->device);
         }
+	
     }
     return status;
 }
