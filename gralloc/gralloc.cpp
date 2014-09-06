@@ -277,9 +277,7 @@ static int gralloc_alloc(alloc_device_t* dev,
             bpp = 2;
                     break;
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
         case HAL_PIXEL_FORMAT_YV12:
-        case HAL_PIXEL_FORMAT_YCbCr_420_P:
             bpp = 2;
             break;
 	case HAL_PIXEL_FORMAT_YCbCr_422_I:
