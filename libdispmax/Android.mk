@@ -19,20 +19,19 @@ LOCAL_PATH := $(call my-dir)
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
 
-LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libvc4 libEGL libGLESv1_CM libdispmanx
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
+LOCAL_SHARED_LIBRARIES := liblog libcutils libvc4 libhardware
 LOCAL_CFLAGS := $(TARGET_BOARD_OPENGL_CFLAGS)
 LOCAL_C_INCLUDES := $(TARGET_BOARD_OPENGL_C_INCLUDES)
 
 
 LOCAL_SRC_FILES := 	\
-	gralloc.cpp 	\
-	framebuffer.cpp \
-	mapper.cpp \
+	brcm.cpp \
+	dispmanx.cpp
 
 
 	
-LOCAL_MODULE := gralloc.bcm2708
+LOCAL_MODULE := libdispmanx
 
 
 

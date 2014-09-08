@@ -93,7 +93,7 @@ static int hwc_prepare(hwc_composer_device_1_t *device,size_t numDisplays, hwc_d
 	    
 	    for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
 		dump_layer(&displays[0]->hwLayers[i]);
-		displays[0]->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+		displays[0]->hwLayers[i].compositionType = HWC_OVERLAY;
 	    }
 	    
 //	}

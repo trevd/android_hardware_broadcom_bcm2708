@@ -2,7 +2,7 @@ TARGET_BCM2708_COMPILE_RAZDROID_LIBS :=
 ifeq ($(strip $(TARGET_BCM2708_COMPILE_RAZDROID_LIBS)),)
 
 # Gralloc
-PRODUCT_PACKAGES += gralloc.bcm2708
+PRODUCT_PACKAGES += gralloc.bcm2708 libdispmax
 
 # HWComposer
 PRODUCT_PACKAGES += \

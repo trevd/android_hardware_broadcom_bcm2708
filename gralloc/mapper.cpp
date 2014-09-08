@@ -39,7 +39,7 @@
 #include <hardware/gralloc.h>
 
 #include "gralloc_priv.h"
-#include "dispmanx.h"
+
 #include <user-vcsm.h>
 
 
@@ -199,7 +199,7 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
         //HAL_PIXEL_FORMAT_YCrCb_420_SP is the only one set right now.
         switch (hnd->format) {
             case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-                ystride = ALIGN_UP(hnd->width, 16);
+                //ystride = ALIGN_UP(hnd->width, 16);
                 ycbcr->y  = (void*)hnd->base;
                 ycbcr->cr = (void*)(hnd->base + ystride * hnd->height);
                 ycbcr->cb = (void*)(hnd->base + ystride * hnd->height + 1);
@@ -245,7 +245,7 @@ int gralloc_perform(struct gralloc_module_t const* module,
             {
 		EGL_DISPMANX_WINDOW_T** win = va_arg(args, EGL_DISPMANX_WINDOW_T **);
 		
-		*win = get_dispmanx_window_element();
+		//*win = get_dispmanx_window_element();
 		return 0;
 		
 		break;

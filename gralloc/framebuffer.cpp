@@ -45,7 +45,6 @@
 #endif
 
 #include "gralloc_priv.h"
-#include "dispmanx.h"
 #include "gr.h"
 
 /*****************************************************************************/

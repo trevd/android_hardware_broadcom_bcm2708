@@ -24,7 +24,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <unistd.h>
-
+#include <gralloc_brcm.h>
+#include <utils/Log.h>
 #include <cutils/native_handle.h>
 
 #include <linux/fb.h>
@@ -55,9 +56,13 @@ typedef struct private_handle_t private_handle_t;
 struct private_handle_t {
     struct native_handle nativeHandle;
 #endif
+ enum {
+        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
+    };
 
     enum {
-        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
+        READ_LOCK = 0x00000001,
+        WRITE_LOCK = 0x00000002
     };
 
     // file-descriptors
@@ -65,6 +70,7 @@ struct private_handle_t {
     // ints
     int     magic;
     int     flags;
+       int     lock;
     int     size;
     int     offset;
         int     format;
@@ -74,7 +80,7 @@ struct private_handle_t {
     int     base;
     
     int     pid;
-
+    struct gralloc_private_handle_t* brcm_handle;
 #ifdef __cplusplus
     static const int sNumInts = 6;
     static const int sNumFds = 1;
